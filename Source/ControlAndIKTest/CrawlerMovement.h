@@ -64,6 +64,8 @@ protected:
 
 	bool IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const;
 
+	FVector CreateClimbVector(FVector MoveDelta);
+
 	/** Set to true when a position correction is applied. Used to avoid recalculating velocity when this occurs. */
 	UPROPERTY(Transient)
 	uint32 bPositionCorrected : 1;

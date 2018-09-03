@@ -143,7 +143,7 @@ protected:
 		FVector* AvgLocation,
 		FVector* AvgNormal,
 		int* HitCount,
-		FVector* CorrectedDirection,
+		float* SuggestedClimbFactor,
 		FVector MovementDirection,
 		int RaysPerAxis);
 

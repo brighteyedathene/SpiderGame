@@ -78,6 +78,15 @@ void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 
 }
 
+FVector UCrawlerMovement::CreateClimbVector(FVector MoveDelta)
+{
+	float MaxDistance = MoveDelta.Size();
+	FVector Up = UpdatedComponent->GetUpVector();
+	FVector ClimbVector = MoveDelta + Up * MaxDistance *0.05;
+	return ClimbVector;
+}
+
+
 void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 {
 	const FVector ControlAcceleration = GetPendingInputVector().GetClampedToMaxSize(1.f);

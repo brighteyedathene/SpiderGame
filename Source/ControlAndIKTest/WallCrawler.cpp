@@ -138,9 +138,10 @@ void AWallCrawler::Tick(float DeltaTime)
 
 	case ECrawlerState::Crawling:
 
-		FVector AverageLocation, AverageNormal, CorrectedDirection;
+		FVector AverageLocation, AverageNormal;
+		float SuggestedClimbFactor;
 		int HitCount;
-		if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &CorrectedDirection, MovementDirection, 5))
+		if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
 		{
 			SetLatchPoint(AverageLocation, AverageNormal);
 			//MarkSpot(LatchPoint, FColor::Green, 0.1);
@@ -157,17 +158,24 @@ void AWallCrawler::Tick(float DeltaTime)
 		FHitResult Hit;
 		if (GetWorld()->LineTraceSingleByChannel(
 			Hit, 
-			RootComponent->GetComponentLocation(), 
+			RootComponent->GetComponentLocation() - RootComponent->GetUpVector() * ColliderSize * 0.5f, 
 			RootComponent->GetComponentLocation() + MovementDirection * SurfaceGroundRayLength, 
 			TraceChannel, 
 			CollisionParameters))
 		{
-			AddMovementInput(RootComponent->GetUpVector(), MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
-			DrawDebugLine(GetWorld(), RootComponent->GetComponentLocation(), Hit.ImpactPoint, FColor::Red, true, 1.f, 0, 0.2f);
-			DrawDebugLine(GetWorld(), RootComponent->GetComponentLocation(), RootComponent->GetComponentLocation() + RootComponent->GetUpVector() * 100, FColor::White, true, 1.f, 0, 0.2f);
+			//AddMovementInput(RootComponent->GetUpVector(), MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
+			//DrawDebugLine(GetWorld(), RootComponent->GetComponentLocation() - RootComponent->GetUpVector() * ColliderSize * 0.5f, Hit.ImpactPoint, FColor::Red, true, 1.f, 0, 0.2f);
+			//DrawDebugLine(GetWorld(), RootComponent->GetComponentLocation(), RootComponent->GetComponentLocation() + RootComponent->GetUpVector() * 100, FColor::Yellow, true, 1.f, 0, 0.2f);
 
 		}
+		else
+		{
+			//DrawDebugLine(GetWorld(), RootComponent->GetComponentLocation() - RootComponent->GetUpVector() * ColliderSize * 0.5f, 
+			//	RootComponent->GetComponentLocation() + MovementDirection * SurfaceGroundRayLength, FColor::White, true, 1.f, 0, 0.2f);
+		}
 		// A
+
+		AddMovementInput(RootComponent->GetUpVector(), SuggestedClimbFactor * MovementSpeed * GetWorld()->GetDeltaSeconds());
 		AddMovementInput(FDirection, InputForward * MovementSpeed * GetWorld()->GetDeltaSeconds());
 		AddMovementInput(RDirection, InputRight * MovementSpeed * GetWorld()->GetDeltaSeconds());
 
@@ -179,12 +187,16 @@ void AWallCrawler::Tick(float DeltaTime)
 	
 }
 
+float ScaleTo01(float x, float lo, float hi)
+{
+	return (x - fabsf(lo)) * (fabsf(hi) / (fabsf(hi) - fabsf(lo)));
+}
 
 bool AWallCrawler::ExploreEnvironmentWithRays(
 	FVector* AvgLocation, 
 	FVector* AvgNormal, 
 	int* HitCount, 
-	FVector* CorrectedDirection, 
+	float* SuggestedClimbFactor,
 	FVector MovementDirection, 
 	int RaysPerAxis)
 {
@@ -199,7 +211,8 @@ bool AWallCrawler::ExploreEnvironmentWithRays(
 	FVector NormalSum = FVector(0, 0, 0);
 	FVector LocationSum = FVector(0, 0, 0);
 
-	// Probe for hits
+	// Probe for hits, accumulate normal and location sums, calculate climb value
+	float MaxClimb = 0;
 	FHitResult Hit;
 	for (float x = -1.f; x <= 1.f; x += delta)
 	{
@@ -215,22 +228,43 @@ bool AWallCrawler::ExploreEnvironmentWithRays(
 					HitCountSum++;
 
 					//DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Black, true, 0.1, 0, 0.2f);
+					float MoveDotRay = FVector::DotProduct(MovementDirection, -Ray);
+					float UpDotRay = FVector::DotProduct(RootComponent->GetUpVector(), -Ray);
+					float RightDotRay = FVector::DotProduct(FVector::CrossProduct(MovementDirection, RootComponent->GetUpVector()), -Ray);
+					const float VertThreshold = 0.4;
+					const float HoriThreshold = 0.4;
+					if (MoveDotRay < 0 && fabsf(UpDotRay) < VertThreshold && fabsf(RightDotRay) < HoriThreshold)
+					{
+						//if (x == 0.0)
+						DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Black, true, 2.1, 0, 0.2f);
+						float NewClimbComponent = fabsf(MoveDotRay) - fabsf(UpDotRay);
+						if (NewClimbComponent > MaxClimb)
+						{
+							MaxClimb = NewClimbComponent;
+							//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("ClimbComponent = %f"), NewClimbComponent));
+						}
+							
+					}
+
 				}
 			}
 		}
 	}
+	if(MaxClimb > 0)
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("ClimbComponent = %f"), MaxClimb));
 
 	if (HitCountSum > 0)
 	{
 		*AvgLocation = LocationSum / HitCountSum;
 		*AvgNormal = NormalSum / HitCountSum;
 		*HitCount = HitCountSum;
+		*SuggestedClimbFactor = MaxClimb;
 
 		//MarkSpot(*AvgLocation, FColor::Red, 0.2);
 		//DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Black, true, 0.1, 0, 0.2f);
 		
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("NormalSum.Size() = %f"), NormalSum.Size()));
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("HitCount         = %d"), HitCountSum));
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("NormalSum.Size() = %f"), NormalSum.Size()));
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("HitCount         = %d"), HitCountSum));
 
 		return true;
 	}
