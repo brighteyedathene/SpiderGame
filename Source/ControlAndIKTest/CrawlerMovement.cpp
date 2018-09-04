@@ -59,7 +59,6 @@ void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				HandleImpact(Hit, DeltaTime, Delta);
 				// Try to slide the remaining distance along the surface.
 				SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("SLIDING"));
 			}
 
 			// Update velocity
@@ -76,14 +75,6 @@ void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 
 	}
 
-}
-
-FVector UCrawlerMovement::CreateClimbVector(FVector MoveDelta)
-{
-	float MaxDistance = MoveDelta.Size();
-	FVector Up = UpdatedComponent->GetUpVector();
-	FVector ClimbVector = MoveDelta + Up * MaxDistance *0.05;
-	return ClimbVector;
 }
 
 
@@ -149,47 +140,6 @@ void UCrawlerMovement::SetFalling(bool ApplyIfTrue)
 bool UCrawlerMovement::IsFalling()
 {
 	return bFalling;
-}
-
-void UCrawlerMovement::AttemptMoveToLocation(FVector Location, FHitResult* OutHit, float DeltaTime)
-{
-	const FVector OldLocation = UpdatedComponent->GetComponentLocation();
-	FVector Direction = Location - OldLocation;
-	float Distance = fminf(Direction.Size(), MaxSpeed); // MaxSpeed for now, maybe use another value for this?
-	Direction.Normalize();
-
-	FHitResult Hit(1.f);
-	bPositionCorrected = false;
-
-	// Move actor
-	FVector Delta = Direction * MaxSpeed * DeltaTime;
-	if (!Delta.IsNearlyZero(1e-6f))
-	{
-
-		const FQuat Rotation = UpdatedComponent->GetComponentQuat();
-
-		
-		SafeMoveUpdatedComponent(Delta, Rotation, true, Hit);
-
-		if (Hit.IsValidBlockingHit())
-		{
-			HandleImpact(Hit, DeltaTime, Delta);
-			// Try to slide the remaining distance along the surface.
-			SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
-		}
-
-		// Update velocity
-		// We don't want position changes to vastly reverse our direction (which can happen due to penetration fixups etc) OR DO WE????
-		if (!bPositionCorrected)
-		{
-			const FVector NewLocation = UpdatedComponent->GetComponentLocation();
-			//Velocity = ((NewLocation - OldLocation) / DeltaTime);
-		}
-	}
-	*OutHit = Hit;
-	//OutHit->bBlockingHit = Hit.bBlockingHit;
-	//OutHit->ImpactNormal = Hit.ImpactNormal;
-	//OutHit->ImpactPoint = Hit.ImpactPoint;
 }
 
 

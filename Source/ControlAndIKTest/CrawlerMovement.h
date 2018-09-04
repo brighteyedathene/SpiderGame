@@ -55,16 +55,12 @@ public:
 	void SetFalling(bool ApplyIfTrue);
 	bool IsFalling();
 
-	void AttemptMoveToLocation(FVector Location, FHitResult* OutHit, float DeltaTime);
-
 protected:
 
 	/** Update Velocity based on input. Also applies gravity. */
 	virtual void ApplyControlInputToVelocity(float DeltaTime);
 
 	bool IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const;
-
-	FVector CreateClimbVector(FVector MoveDelta);
 
 	/** Set to true when a position correction is applied. Used to avoid recalculating velocity when this occurs. */
 	UPROPERTY(Transient)

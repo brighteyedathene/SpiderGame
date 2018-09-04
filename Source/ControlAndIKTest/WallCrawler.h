@@ -39,7 +39,6 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn
 	
 	UPROPERTY(EditAnywhere)
 	UCrawlerMovement* CrawlerMovement;
-	//class UFloatingPawnMovement* PawnMovement;
 
 public:
 	// Sets default values for this pawn's properties
@@ -59,10 +58,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
 	
-	/** What is the Player's current surface colliding count */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	int CurrentSurfaceCount;
-	
 	/** Radius of collider */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
 	float ColliderSize;
@@ -75,23 +70,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
 	float SurfaceIdealDistance;
 
-	/** How far down (relative to starting orientation) will the convex transition target be placed 
-	* Should be no longer than the thinnest wall is thick
-	*/
+	/** How close is good enough to stop clinging */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float SurfaceConvexTransitionDistance;
-
-	/** How strong will the crawler adhere to surfaces */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float SurfaceAdherenceStrength;
-
-	/** How close is good enough to consider a transition complete */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float SurfaceTransitionAllowance;
-
-	/** Length of transition in seconds */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float SurfaceTransitionTime;
+	float SurfaceIdealDistanceThreshold;
 
 	UPROPERTY(EditAnywhere, Category = WallCrawling)
 	float MovementSpeed;
@@ -100,11 +81,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = WallCrawling)
 	float RotationCorrectionAlpha;
 
-	/** How fast will the crawler correct its orientation */
-	UPROPERTY(EditAnywhere, Category = WallCrawling)
-	int LatchHistoryLength;
 
-	/** Raycasting shit */
+	/** Raycasting shit - somethign complains about this stuff*/
 	//UPROPERTY(EditAnywhere, Category = WallCrawling)
 	FCollisionQueryParams CollisionParameters;
 	//UPROPERTY(EditAnywhere, Category = WallCrawling)
@@ -124,7 +102,6 @@ protected:
 
 
 	void RotateTowardsNormal(FVector Normal, float t);
-	FQuat GetQuatFrom(FVector StartNormal, FVector TartgetNormal);
 
 	/** This point anchors the crawler to a surface.
 	* As long as there is a LatchPoint, the crawler will not begin to fall
@@ -138,12 +115,20 @@ protected:
 
 	
 	/** Checks all directions using RaysPerAxis
+	* This function takes a number of pointers to write return values in
+	* @param pAvgLocation	The mean position of each ray hit - misses do not contribute
+	* @param pAvgNormal	The mean normal of each ray hit - misses do not contribute
+	* @param pHitCoutn	The number of rays to Hit
+	* @param pSuggestedClimbFactor	Increases towards 1 if a ray hit opposes MovementDirection
+	* @param MovementDirection	The movement direction given by the current frame's movment input
+	* @param RaysPerAxis	How many Rays to fire along each axis (5 is good, but 5*5*5 rays!!)
+	* Returns false only if no rays hit
 	*/
 	bool ExploreEnvironmentWithRays(
-		FVector* AvgLocation,
-		FVector* AvgNormal,
-		int* HitCount,
-		float* SuggestedClimbFactor,
+		FVector* pAvgLocation,
+		FVector* pAvgNormal,
+		int* pHitCount,
+		float* pSuggestedClimbFactor,
 		FVector MovementDirection,
 		int RaysPerAxis);
 
