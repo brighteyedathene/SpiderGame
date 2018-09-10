@@ -136,7 +136,6 @@ void AWallCrawler::Tick(float DeltaTime)
 			// Keep the old latch point
 		}
 
-
 		ClingToPoint(LatchPoint, LatchNormal);
 
 		AddMovementInput(RootComponent->GetUpVector(), SuggestedClimbFactor * MovementSpeed * GetWorld()->GetDeltaSeconds());
@@ -226,7 +225,7 @@ void AWallCrawler::ClingToPoint(FVector EndLocation, FVector EndNormal)
 	// Try to move towards a point above EndLocation while rotating in line with EndNormal
 	// Uses AddMovementInput(..) so that collision and velocity limiting can be applied
 	// WARNING: If the point can't be reached within SurfaceIdealDistanceThreshold, then you might get stuck!
-	FVector TargetLocation = EndLocation + EndNormal * SurfaceIdealDistance;
+	const FVector TargetLocation = EndLocation + EndNormal * SurfaceIdealDistance;
 	const float Distance = FVector::Distance(TargetLocation, RootComponent->GetComponentLocation());
 	float Force = fminf(MovementSpeed, Distance);
 	Force = fmaxf(0, Force - SurfaceIdealDistanceThreshold);
