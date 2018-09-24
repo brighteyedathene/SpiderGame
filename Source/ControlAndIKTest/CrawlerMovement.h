@@ -55,6 +55,8 @@ public:
 	void SetFalling(bool ApplyIfTrue);
 	bool IsFalling();
 
+	FVector GetVelocity() { return Velocity; };
+
 protected:
 
 	/** Update Velocity based on input. Also applies gravity. */

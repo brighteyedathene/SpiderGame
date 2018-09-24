@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "CrawlerMovement.h"
+#include "CrawlerGaitControl.h"
 
 #include "WallCrawler.generated.h"
 
@@ -39,6 +40,9 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn
 	
 	UPROPERTY(EditAnywhere)
 	UCrawlerMovement* CrawlerMovement;
+
+	UPROPERTY(EditAnywhere)
+	UCrawlerGaitControl* CrawlerGaitControl;
 
 public:
 	// Sets default values for this pawn's properties
@@ -118,7 +122,7 @@ protected:
 	* This function takes a number of pointers to write return values in
 	* @param pAvgLocation	The mean position of each ray hit - misses do not contribute
 	* @param pAvgNormal	The mean normal of each ray hit - misses do not contribute
-	* @param pHitCoutn	The number of rays to Hit
+	* @param pHitCount	The number of rays to Hit
 	* @param pSuggestedClimbFactor	Increases towards 1 if a ray hit opposes MovementDirection
 	* @param MovementDirection	The movement direction given by the current frame's movment input
 	* @param RaysPerAxis	How many Rays to fire along each axis (5 is good, but 5*5*5 rays!!)

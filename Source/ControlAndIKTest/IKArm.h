@@ -6,6 +6,15 @@
 #include "GameFramework/Actor.h"
 #include "IKArm.generated.h"
 
+UENUM()
+enum class EIKLimbType : uint8
+{
+	/** A leg for walking */
+	Leg,
+	/** An arm for grabbing and attacking */
+	Arm
+};
+
 UCLASS()
 class CONTROLANDIKTEST_API AIKArm : public AActor
 {
@@ -24,6 +33,21 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	USceneComponent* LowerArm;
 
 	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* HighTarget;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* LowTarget;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* UnderTarget;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* UnderTargetOrigin;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* RestTarget;
+
+	UPROPERTY(EditAnywhere, Category = IK)
 	float UpperArmLength;
 
 	UPROPERTY(EditAnywhere, Category = IK)
@@ -31,6 +55,15 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	float MaximumAngle;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	float DirectionModifierStrength;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	EIKLimbType LimbType;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	TArray<USceneComponent*> ArmTargets;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	FVector IKTarget;
@@ -42,18 +75,26 @@ public:
 	UPROPERTY(EditAnywhere, Category = IK)
 	bool DEBUG_SHOW_ANGLE;
 
+	UPROPERTY(EditAnywhere, Category = IK)
+	int GaitStepIndex;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	bool TargetReachable;
 
-	FMatrix GetRotationMatrix();
+	/* Calculated using the IKRoot as a base, looking at IKTarget with IKPin pointing up.
+	*/
+	FMatrix GetIKFrameRotationMatrix();
 
-	void UpdateIK();
+	void SolveIKAndSetArmRotation();
 
-	/* Find the angle opposite side 'a' in the triangle given by the lengths a, b and c
-	* Doesn't check for a valid triangle!!
+	bool IsLimbColliding();
+
+	/** Find the angle opposite side 'a' in the triangle given by the lengths a, b and c
+	* This doesn't check for a valid triangle!!
+	* It just clamps the acosf input to [0,1]
 	*/
 	float FindAngleA(float a, float b, float c);
 
@@ -65,5 +106,6 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	void SetIKTarget(FVector NewTarget);
-	
+	void PickNewIkTarget(FVector DirectionModifier = FVector(0,0,0));
+	EIKLimbType GetLimbType() { return LimbType; }
 };

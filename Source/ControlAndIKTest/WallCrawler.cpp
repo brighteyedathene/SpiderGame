@@ -26,6 +26,7 @@ AWallCrawler::AWallCrawler()
 	MySphereComponent->SetCollisionProfileName(TEXT("Pawn"));
 	
 	CrawlerMovement = CreateDefaultSubobject<UCrawlerMovement>("CrawlerMovement");
+	CrawlerGaitControl = CreateDefaultSubobject<UCrawlerGaitControl>("CrawlerGaitControl");
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -37,7 +38,6 @@ AWallCrawler::AWallCrawler()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false; 
-
 
 	CollisionParameters.AddIgnoredActor(this);
 	CollisionParameters.bTraceComplex = true;
@@ -140,6 +140,8 @@ void AWallCrawler::Tick(float DeltaTime)
 
 		AddMovementInput(RootComponent->GetUpVector(), SuggestedClimbFactor * MovementSpeed * GetWorld()->GetDeltaSeconds());
 		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
+
+		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
 	}
 
 }

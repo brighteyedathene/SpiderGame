@@ -21,6 +21,17 @@ AIKArm::AIKArm()
 	LowerArm->SetupAttachment(UpperArm);
 	
 
+	HighTarget = CreateDefaultSubobject<USceneComponent>(TEXT("HighTarget"));
+	HighTarget->SetupAttachment(RootComponent);
+	LowTarget = CreateDefaultSubobject<USceneComponent>(TEXT("LowTarget"));
+	LowTarget->SetupAttachment(RootComponent);
+	UnderTarget = CreateDefaultSubobject<USceneComponent>(TEXT("UnderTarget"));
+	UnderTarget->SetupAttachment(RootComponent);
+	UnderTargetOrigin = CreateDefaultSubobject<USceneComponent>(TEXT("UnderTargetOrigin"));
+	UnderTargetOrigin->SetupAttachment(RootComponent);
+	RestTarget = CreateDefaultSubobject<USceneComponent>(TEXT("RestTarget"));
+	RestTarget->SetupAttachment(RootComponent);
+
 }
 
 // Called when the game starts or when spawned
@@ -35,37 +46,40 @@ void AIKArm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
+	//PickNewIkTarget();
 
 
-	FCollisionQueryParams CollisionParameters;
-	CollisionParameters.AddIgnoredActor(this);
-	CollisionParameters.bTraceComplex = true;
-	FHitResult Hit;
-	if (!TargetReachable &&
-		GetWorld()->LineTraceSingleByChannel(
-			Hit,
-			IKRoot->GetComponentLocation(),
-			IKRoot->GetComponentLocation() + IKRoot->GetForwardVector() * 300 - IKRoot->GetUpVector() * 200,
-			ECC_Visibility,
-			CollisionParameters)
-		)
+	//FCollisionQueryParams CollisionParameters;
+	//CollisionParameters.AddIgnoredActor(this);
+	//CollisionParameters.bTraceComplex = true;
+	//FHitResult Hit;
+	//if (!TargetReachable &&
+	//	GetWorld()->LineTraceSingleByChannel(
+	//		Hit,
+	//		IKRoot->GetComponentLocation(),
+	//		IKRoot->GetComponentLocation() + IKRoot->GetForwardVector() * 300 - IKRoot->GetUpVector() * 200,
+	//		ECC_Visibility,
+	//		CollisionParameters)
+	//	)
+	//{
+	//	IKTarget = Hit.ImpactPoint;
+	//}
+	if (!TargetReachable)
 	{
-		IKTarget = Hit.ImpactPoint;
+		PickNewIkTarget();
 	}
 
-
-	UpdateIK();
+	SolveIKAndSetArmRotation();
 
 	if(DEBUG_SHOW_ANGLE)
 		DebugDrawArm();
 }
 
-void AIKArm::UpdateIK()
+void AIKArm::SolveIKAndSetArmRotation()
 {
 	TargetReachable = true;
 
-	FQuat FrameRotation = GetRotationMatrix().ToQuat(); // Rotates (World -> IKFrame_
+	FQuat FrameRotation = GetIKFrameRotationMatrix().ToQuat(); // Rotates (World -> IKFrame)
 	FQuat InverseFrameRotation = FrameRotation.Inverse(); // Rotates (IKFrame -> World)
 	FQuat LocalRotation = IKRoot->GetComponentQuat().Inverse() * FrameRotation; // Rotates (IKRoot ->IKFrame)
 	
@@ -76,23 +90,11 @@ void AIKArm::UpdateIK()
 	// The translated points for the equation
 	FVector Root, Pin, Target;
 	
-	// Translate all 3 points to origin and Rotate all 3 points to line up with x-axis
+	// Translate all 3 points to origin and rotate all 3 points to line up with x-axis
 	FVector ToOrigin = -IKRoot->GetComponentLocation();
 	Root = InverseFrameRotation * (IKRoot->GetComponentLocation() + ToOrigin);
 	Pin = InverseFrameRotation * (IKPin->GetComponentLocation() + ToOrigin);
 	Target = InverseFrameRotation * (IKTarget + ToOrigin);
-
-	MarkSpot(Root, FColor::Red);
-	MarkSpot(Pin, FColor::Yellow);
-	MarkSpot(Target, FColor::Green);
-
-	//FVector DRoot = RotationQuat * (Root - ToOrigin);
-	//FVector DPin = RotationQuat * (Pin - ToOrigin);
-	//FVector DTarget = RotationQuat * (Target - ToOrigin);
-	//
-	//MarkSpot(DRoot, FColor::Magenta);
-	//MarkSpot(DPin, FColor::Blue);
-	//MarkSpot(DTarget, FColor::Cyan);
 
 	// Solve IK in 2D from here
 	float UpperArmAngle;
@@ -114,15 +116,14 @@ void AIKArm::UpdateIK()
 	UpperArm->SetRelativeRotation(LocalRotation * FRotator(UpperArmAngle, 0, 0).Quaternion());
 	LowerArm->SetRelativeRotation(FRotator(LowerArmAngle, 0, 0));
 
+	if (IsLimbColliding())
+	{
+		TargetReachable = false;
+	}
+
 }
 
-
-void AIKArm::SetIKTarget(FVector NewTarget)
-{
-	IKTarget = NewTarget;
-}
-
-FMatrix AIKArm::GetRotationMatrix()
+FMatrix AIKArm::GetIKFrameRotationMatrix()
 {
 	FVector Forward = IKTarget - IKRoot->GetComponentLocation();
 	FVector Up = IKPin->GetComponentLocation() - IKRoot->GetComponentLocation();
@@ -141,6 +142,90 @@ float AIKArm::FindAngleA(float a, float b, float c)
 			)
 		)
 	);
+}
+
+
+void AIKArm::SetIKTarget(FVector NewTarget)
+{
+	IKTarget = NewTarget;
+}
+
+void AIKArm::PickNewIkTarget(FVector DirectionModifier)
+{
+	/* 
+	* Shoot rays to find a new IKTarget
+	* If all rays fail, set the IKTarget to the RestTarget position
+	*/
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this);
+	CollisionParameters.bTraceComplex = true;
+	FHitResult Hit;
+	// Root -> HighTarget
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		IKRoot->GetComponentLocation(),
+		HighTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		IKTarget = Hit.ImpactPoint;
+	}
+	// Root -> LowTarget
+	else if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		IKRoot->GetComponentLocation(),
+		LowTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		IKTarget = Hit.ImpactPoint;
+	}
+	// LowTarget -> UnderTarget
+	else if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		LowTarget->GetComponentLocation(),
+		UnderTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		IKTarget = Hit.ImpactPoint;
+	}
+	//else
+	//{
+	//	IKTarget = RestTarget->GetComponentLocation();
+	//}
+	
+
+}
+
+bool AIKArm::IsLimbColliding()
+{
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this);
+	CollisionParameters.bTraceComplex = true;
+	FHitResult Hit;
+	// From UpperArm to LowerArm
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		IKRoot->GetComponentLocation(),
+		LowerArm->GetComponentLocation(),
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		return true;
+	}
+	// From LowerArm to IKTarget ALMOST (We don't want to actually hit the target!)
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		LowerArm->GetComponentLocation(),
+		LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength * 0.9f,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void AIKArm::DebugDrawArm()
