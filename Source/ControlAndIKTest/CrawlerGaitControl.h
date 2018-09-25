@@ -29,6 +29,8 @@ protected:
 	// This is the number of steps in a walk cycle
 	int NumberOfSteps;
 
+	int CurrentStep;
+
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -41,4 +43,6 @@ public:
 
 	void UpdateGait(FVector MovementDelta);
 
+	// DELETE THIS LATER
+	void MarkSpot(FVector Point, FColor Colour);
 };

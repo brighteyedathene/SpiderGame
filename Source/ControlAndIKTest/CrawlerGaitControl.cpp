@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "CrawlerGaitControl.h"
+#include "DrawDebugHelpers.h"
 
 
 // Sets default values for this component's properties
@@ -35,7 +36,7 @@ void UCrawlerGaitControl::BeginPlay()
 			}
 		}
 	}
-
+	CurrentStep = 0;
 }
 
 
@@ -44,23 +45,11 @@ void UCrawlerGaitControl::TickComponent(float DeltaTime, ELevelTick TickType, FA
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	static bool printed = false;
-	if (!printed)
-	{
-		for (auto Leg : Legs)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("GOT one"));
-		}
-		printed = true;
-	}
-
 }
 
 void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White,  MovementDelta.ToCompactString());
-
-	static int CurrentStep = 0;
 
 	CurrentGaitPosition += MovementDelta.Size();
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("CurrentGaitPosition = %f"), CurrentGaitPosition));
@@ -73,7 +62,9 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 			if (Leg->GaitStepIndex == CurrentStep)
 			{
 				Leg->PickNewIkTarget(MovementDelta);
+				MarkSpot(Leg->GetIKTarget(), FColor::Blue);
 			}
+			//Leg->MovementDelta = MovementDelta;
 		}
 
 		// Increment step
@@ -81,5 +72,33 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 
 		// Reset gait position
 		CurrentGaitPosition = 0;
+	}
+
+
+
+	AActor* Owner = GetOwner();
+	if (CurrentStep == 0)
+	{
+		DrawDebugLine(GetWorld(), Owner->GetActorLocation(), Owner->GetActorLocation() + Owner->GetActorUpVector() * 50, FColor::Red, false, -1, 0, 3.f);
+	}
+	else
+	{
+		DrawDebugLine(GetWorld(), Owner->GetActorLocation() + Owner->GetActorUpVector() * 25 - Owner->GetActorRightVector()*25, 
+			Owner->GetActorLocation() + Owner->GetActorUpVector() * 25 + Owner->GetActorRightVector() * 25, FColor::Red, false, -1, 0, 3.f);
+	}
+}
+
+void UCrawlerGaitControl::MarkSpot(FVector Point, FColor Colour)
+{
+	float length = 10.f;
+	for (int x = -1; x <= 1; x++)
+	{
+		for (int y = -1; y <= 1; y++)
+		{
+			for (int z = -1; z <= 1; z++)
+			{
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, true, -1, 0, 1.f);
+			}
+		}
 	}
 }

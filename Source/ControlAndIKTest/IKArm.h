@@ -78,6 +78,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = IK)
 	int GaitStepIndex;
 
+	FVector MovementDelta;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -107,5 +109,8 @@ public:
 
 	void SetIKTarget(FVector NewTarget);
 	void PickNewIkTarget(FVector DirectionModifier = FVector(0,0,0));
+
+	FVector GetIKTarget() { return IKTarget; }
+
 	EIKLimbType GetLimbType() { return LimbType; }
 };

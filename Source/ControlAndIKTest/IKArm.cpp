@@ -46,30 +46,18 @@ void AIKArm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//PickNewIkTarget();
-
-
-	//FCollisionQueryParams CollisionParameters;
-	//CollisionParameters.AddIgnoredActor(this);
-	//CollisionParameters.bTraceComplex = true;
-	//FHitResult Hit;
-	//if (!TargetReachable &&
-	//	GetWorld()->LineTraceSingleByChannel(
-	//		Hit,
-	//		IKRoot->GetComponentLocation(),
-	//		IKRoot->GetComponentLocation() + IKRoot->GetForwardVector() * 300 - IKRoot->GetUpVector() * 200,
-	//		ECC_Visibility,
-	//		CollisionParameters)
-	//	)
+	//if (!TargetReachable)
 	//{
-	//	IKTarget = Hit.ImpactPoint;
+	//	PickNewIkTarget(MovementDelta);
 	//}
+
+	SolveIKAndSetArmRotation();
+
 	if (!TargetReachable)
 	{
 		PickNewIkTarget();
+		MarkSpot(IKTarget, FColor::Red);
 	}
-
-	SolveIKAndSetArmRotation();
 
 	if(DEBUG_SHOW_ANGLE)
 		DebugDrawArm();
@@ -293,7 +281,7 @@ void AIKArm::MarkSpot(FVector Point, FColor Colour)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, false, -1, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, true, -1, 0, 1.f);
 			}
 		}
 	}
