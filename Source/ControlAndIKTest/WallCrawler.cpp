@@ -92,7 +92,7 @@ void AWallCrawler::Tick(float DeltaTime)
 	if (LocalYaw < 0.0f)
 		LocalYaw += 360.0f;
 
-	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw*1.5, 0);
+	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw*2.5, 0);
 	CameraBoom->SetRelativeRotation(CameraRotation);
 
 	// Movement control...

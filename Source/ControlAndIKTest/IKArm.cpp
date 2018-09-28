@@ -14,6 +14,8 @@ AIKArm::AIKArm()
 
 	IKPin = CreateDefaultSubobject<USceneComponent>(TEXT("IKPin"));
 	IKPin->SetupAttachment(RootComponent);
+	UnderTargetIKPin = CreateDefaultSubobject<USceneComponent>(TEXT("UnderTargetIKPin"));
+	UnderTargetIKPin->SetupAttachment(RootComponent);
 
 	UpperArm = CreateDefaultSubobject<USceneComponent>(TEXT("UpperArm"));
 	UpperArm->SetupAttachment(RootComponent);
@@ -23,12 +25,13 @@ AIKArm::AIKArm()
 
 	HighTarget = CreateDefaultSubobject<USceneComponent>(TEXT("HighTarget"));
 	HighTarget->SetupAttachment(RootComponent);
+	GroundTarget = CreateDefaultSubobject<USceneComponent>(TEXT("GroundTarget"));
+	GroundTarget->SetupAttachment(RootComponent);
 	LowTarget = CreateDefaultSubobject<USceneComponent>(TEXT("LowTarget"));
 	LowTarget->SetupAttachment(RootComponent);
 	UnderTarget = CreateDefaultSubobject<USceneComponent>(TEXT("UnderTarget"));
 	UnderTarget->SetupAttachment(RootComponent);
-	UnderTargetOrigin = CreateDefaultSubobject<USceneComponent>(TEXT("UnderTargetOrigin"));
-	UnderTargetOrigin->SetupAttachment(RootComponent);
+
 	RestTarget = CreateDefaultSubobject<USceneComponent>(TEXT("RestTarget"));
 	RestTarget->SetupAttachment(RootComponent);
 
@@ -46,22 +49,38 @@ void AIKArm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//if (!TargetReachable)
-	//{
-	//	PickNewIkTarget(MovementDelta);
-	//}
+	SmoothUpdateIKTarget();
 
 	SolveIKAndSetArmRotation();
 
-	if (!TargetReachable)
+	if (!TargetReachable || UsingRestTarget)
 	{
 		PickNewIkTarget();
-		MarkSpot(IKTarget, FColor::Red);
 	}
 
-	if(DEBUG_SHOW_ANGLE)
-		DebugDrawArm();
+	//if(DEBUG_SHOW_ANGLE)
+	//	DebugDrawArm();
 }
+
+void AIKArm::SmoothUpdateIKTarget()
+{
+	// Simple and bad, should improve so that the target moves up a little between points
+	float t = 0.35;
+	IKTargetIntermediate = IKTargetIntermediate * (1 - t) + IKTargetFinal * t;
+
+	//IKTargetTransitionTimer += GetWorld()->GetDeltaSeconds();
+	//if (IKTargetTransitionTimer < IKTargetTransitionDuration)
+	//{
+	//	float t = IKTargetTransitionTimer / IKTargetTransitionDuration;
+	//	float alpha = FMath::SmoothStep(0.f, 1.f, t);
+	//	IKTargetIntermediate = IKTargetIntermediate * (1 - alpha) + IKTargetFinal * alpha;
+	//}
+	//else
+	//{
+	//	IKTargetIntermediate = IKTargetFinal;
+	//}
+}
+
 
 void AIKArm::SolveIKAndSetArmRotation()
 {
@@ -71,9 +90,19 @@ void AIKArm::SolveIKAndSetArmRotation()
 	FQuat InverseFrameRotation = FrameRotation.Inverse(); // Rotates (IKFrame -> World)
 	FQuat LocalRotation = IKRoot->GetComponentQuat().Inverse() * FrameRotation; // Rotates (IKRoot ->IKFrame)
 	
-	float FrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FrameRotation.GetForwardVector(), IKRoot->GetComponentQuat().GetForwardVector()).GetAngle());
-	if (FrameAngle > MaximumAngle)
+	float ForwardFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FrameRotation.GetForwardVector(), IKRoot->GetComponentQuat().GetForwardVector()).GetAngle());
+	float DownFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FrameRotation.GetForwardVector(), -IKRoot->GetComponentQuat().GetUpVector()).GetAngle());
+	if (ForwardFrameAngle > MaximumAngle && DownFrameAngle > MaximumAngleUnderneath)
+	{
 		TargetReachable = false;
+		if (DEBUG_SHOW_ANGLE)
+		{
+			MarkSpot(IKTargetIntermediate, FColor::Blue);
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("ForwardFrameAngle = %f"), ForwardFrameAngle));
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("DownFrameAngle = %f"), DownFrameAngle));
+		}
+	}
+
 
 	// The translated points for the equation
 	FVector Root, Pin, Target;
@@ -82,7 +111,7 @@ void AIKArm::SolveIKAndSetArmRotation()
 	FVector ToOrigin = -IKRoot->GetComponentLocation();
 	Root = InverseFrameRotation * (IKRoot->GetComponentLocation() + ToOrigin);
 	Pin = InverseFrameRotation * (IKPin->GetComponentLocation() + ToOrigin);
-	Target = InverseFrameRotation * (IKTarget + ToOrigin);
+	Target = InverseFrameRotation * (IKTargetIntermediate + ToOrigin);
 
 	// Solve IK in 2D from here
 	float UpperArmAngle;
@@ -93,6 +122,8 @@ void AIKArm::SolveIKAndSetArmRotation()
 		UpperArmAngle = 0;
 		LowerArmAngle = 0;
 		TargetReachable = false;
+		if (DEBUG_SHOW_ANGLE)
+			MarkSpot(IKTargetIntermediate, FColor::Cyan);
 	}
 	else
 	{
@@ -107,15 +138,21 @@ void AIKArm::SolveIKAndSetArmRotation()
 	if (IsLimbColliding())
 	{
 		TargetReachable = false;
+		if (DEBUG_SHOW_ANGLE)
+			MarkSpot(IKTargetIntermediate, FColor::Magenta);
 	}
 
 }
 
 FMatrix AIKArm::GetIKFrameRotationMatrix()
 {
-	FVector Forward = IKTarget - IKRoot->GetComponentLocation();
-	FVector Up = IKPin->GetComponentLocation() - IKRoot->GetComponentLocation();
-
+	FVector Forward = IKTargetIntermediate - IKRoot->GetComponentLocation();
+	FVector Up;
+	if (IsIKTargetUnderNeath())
+		Up = UnderTargetIKPin->GetComponentLocation() - IKRoot->GetComponentLocation();
+	else
+		Up = IKPin->GetComponentLocation() - IKRoot->GetComponentLocation();
+	
 	return FRotationMatrix::MakeFromXZ(Forward, Up);
 }
 
@@ -135,7 +172,9 @@ float AIKArm::FindAngleA(float a, float b, float c)
 
 void AIKArm::SetIKTarget(FVector NewTarget)
 {
-	IKTarget = NewTarget;
+	IKTargetFinal = NewTarget;
+	IKTargetInTransit = true;
+	IKTargetTransitionTimer = 0;
 }
 
 void AIKArm::PickNewIkTarget(FVector DirectionModifier)
@@ -144,8 +183,10 @@ void AIKArm::PickNewIkTarget(FVector DirectionModifier)
 	* Shoot rays to find a new IKTarget
 	* If all rays fail, set the IKTarget to the RestTarget position
 	*/
+	UsingRestTarget = false; // Unless we miss all rays, we won't use the rest target
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(this);
+	CollisionParameters.AddIgnoredActor(this->GetParentActor());
 	CollisionParameters.bTraceComplex = true;
 	FHitResult Hit;
 	// Root -> HighTarget
@@ -156,34 +197,67 @@ void AIKArm::PickNewIkTarget(FVector DirectionModifier)
 		ECC_Visibility,
 		CollisionParameters))
 	{
-		IKTarget = Hit.ImpactPoint;
+		UsingUnderTargetIKPin = false;
 	}
-	// Root -> LowTarget
+	// Root -> GroundTarget
 	else if (GetWorld()->LineTraceSingleByChannel(
 		Hit,
 		IKRoot->GetComponentLocation(),
+		GroundTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		UsingUnderTargetIKPin = false;
+	}
+	// HighTarget -> LowTarget
+	else if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		HighTarget->GetComponentLocation(),
 		LowTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
 		ECC_Visibility,
 		CollisionParameters))
 	{
-		IKTarget = Hit.ImpactPoint;
+		UsingUnderTargetIKPin = false;
+	}
+	// GroundTarget -> UnderTarget
+	else if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		GroundTarget->GetComponentLocation(),
+		UnderTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength *0.5,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		UsingUnderTargetIKPin = true;
 	}
 	// LowTarget -> UnderTarget
 	else if (GetWorld()->LineTraceSingleByChannel(
 		Hit,
 		LowTarget->GetComponentLocation(),
-		UnderTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
+		UnderTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength *0.5,
 		ECC_Visibility,
 		CollisionParameters))
 	{
-		IKTarget = Hit.ImpactPoint;
+		UsingUnderTargetIKPin = true;
 	}
-	//else
-	//{
-	//	IKTarget = RestTarget->GetComponentLocation();
-	//}
+	else
+	{
+		Hit.ImpactPoint = RestTarget->GetComponentLocation() - FVector(0, 0, -RestTargetSlack);
+		UsingRestTarget = true;
+		if (DEBUG_SHOW_ANGLE)
+			MarkSpot(Hit.ImpactPoint, FColor::Orange);
+	}
 	
+	SetIKTarget(Hit.ImpactPoint);
 
+}
+
+bool AIKArm::IsIKTargetUnderNeath()
+{
+	//FQuat InvertRotation = IKRoot->GetComponentQuat().Inverse();
+	//FVector RelativeIKTarget = InvertRotation * (IKTargetIntermediate - IKRoot->GetComponentLocation()) ;
+	//return RelativeIKTarget.X < -1 && RelativeIKTarget.Z < -1;
+	
+	return UsingUnderTargetIKPin;
 }
 
 bool AIKArm::IsLimbColliding()
@@ -218,58 +292,46 @@ bool AIKArm::IsLimbColliding()
 
 void AIKArm::DebugDrawArm()
 {
-	if (TargetReachable)
+	FColor LegColor;
+	if (IsIKTargetUnderNeath())
 	{
-		// Upper Arm
-		DrawDebugLine(
-			GetWorld(),
-			IKRoot->GetComponentLocation(),
-			IKRoot->GetComponentLocation() + UpperArm->GetForwardVector() * UpperArmLength,
-			FColor::Black, false, -1, 0, 6.f
-		);
-
-		// Lower Arm
-		DrawDebugLine(
-			GetWorld(),
-			LowerArm->GetComponentLocation(),
-			LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength,
-			FColor::Black, false, -1, 0, 6.f
-		);
-
-		// Direct Line from root to target
-		//DrawDebugLine(
-		//	GetWorld(),
-		//	IKRoot->GetComponentLocation(),
-		//	IKTarget,
-		//	FColor::White, false, -1, 0, 1.f
-		//);
+		LegColor = FColor::Orange;
+	}
+	else if (!TargetReachable)
+	{
+		LegColor = FColor::Red;
 	}
 	else
 	{
-		//// Upper Arm
-		//DrawDebugLine(
-		//	GetWorld(),
-		//	IKRoot->GetComponentLocation(),
-		//	IKRoot->GetComponentLocation() + UpperArm->GetForwardVector() * UpperArmLength,
-		//	FColor::Red, false, -1, 0, 1.f
-		//);
-		//
-		//// Lower Arm
-		//DrawDebugLine(
-		//	GetWorld(),
-		//	LowerArm->GetComponentLocation(),
-		//	LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength,
-		//	FColor::Red, false, -1, 0, 1.f
-		//);
-
-		// Direct Line from root to target
-		DrawDebugLine(
-			GetWorld(),
-			IKRoot->GetComponentLocation(),
-			IKTarget,
-			FColor::Red, false, -1, 0, 1.f
-		);
+		LegColor = FColor::Black;
 	}
+
+	
+	// Upper Arm
+	DrawDebugLine(
+		GetWorld(),
+		IKRoot->GetComponentLocation(),
+		IKRoot->GetComponentLocation() + UpperArm->GetForwardVector() * UpperArmLength,
+		LegColor, false, -1, 0, 6.f
+	);
+
+	// Lower Arm
+	DrawDebugLine(
+		GetWorld(),
+		LowerArm->GetComponentLocation(),
+		LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength,
+		LegColor, false, -1, 0, 6.f
+	);
+
+	// Direct Line from root to target
+	DrawDebugLine(
+		GetWorld(),
+		IKRoot->GetComponentLocation(),
+		IKTargetIntermediate,
+		FColor::White, false, -1, 0, 1.f
+	);
+
+		
 }
 
 void AIKArm::MarkSpot(FVector Point, FColor Colour)

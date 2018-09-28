@@ -27,6 +27,10 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	USceneComponent* IKPin;
 
 	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* UnderTargetIKPin;
+	bool UsingUnderTargetIKPin;
+
+	UPROPERTY(EditAnywhere, Category = IK)
 	USceneComponent* UpperArm;
 	
 	UPROPERTY(EditAnywhere, Category = IK)
@@ -36,16 +40,20 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	USceneComponent* HighTarget;
 
 	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* GroundTarget;	
+	
+	UPROPERTY(EditAnywhere, Category = IK)
 	USceneComponent* LowTarget;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	USceneComponent* UnderTarget;
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	USceneComponent* UnderTargetOrigin;
+	USceneComponent* RestTarget;
+	bool UsingRestTarget;
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	USceneComponent* RestTarget;
+	float RestTargetSlack;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	float UpperArmLength;
@@ -54,7 +62,9 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	float LowerArmLength;
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	float MaximumAngle;
+	float MaximumAngle;	
+	UPROPERTY(EditAnywhere, Category = IK)
+	float MaximumAngleUnderneath;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	float DirectionModifierStrength;
@@ -66,7 +76,13 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	TArray<USceneComponent*> ArmTargets;
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	FVector IKTarget;
+	FVector IKTargetFinal;
+	FVector IKTargetIntermediate;
+	bool IKTargetInTransit;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	float IKTargetTransitionDuration;
+	float IKTargetTransitionTimer;
 
 public:	
 	// Sets default values for this actor's properties
@@ -91,7 +107,8 @@ protected:
 	FMatrix GetIKFrameRotationMatrix();
 
 	void SolveIKAndSetArmRotation();
-
+	
+	bool IsIKTargetUnderNeath();
 	bool IsLimbColliding();
 
 	/** Find the angle opposite side 'a' in the triangle given by the lengths a, b and c
@@ -99,6 +116,8 @@ protected:
 	* It just clamps the acosf input to [0,1]
 	*/
 	float FindAngleA(float a, float b, float c);
+
+	void SmoothUpdateIKTarget();
 
 	void DebugDrawArm();
 	void MarkSpot(FVector Point, FColor Colour);
@@ -110,7 +129,7 @@ public:
 	void SetIKTarget(FVector NewTarget);
 	void PickNewIkTarget(FVector DirectionModifier = FVector(0,0,0));
 
-	FVector GetIKTarget() { return IKTarget; }
+	FVector GetIKTargetFinal() { return IKTargetFinal; }
 
 	EIKLimbType GetLimbType() { return LimbType; }
 };

@@ -52,7 +52,6 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White,  MovementDelta.ToCompactString());
 
 	CurrentGaitPosition += MovementDelta.Size();
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("CurrentGaitPosition = %f"), CurrentGaitPosition));
 
 	if (CurrentGaitPosition > GaitStepLength)
 	{
@@ -62,7 +61,8 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 			if (Leg->GaitStepIndex == CurrentStep)
 			{
 				Leg->PickNewIkTarget(MovementDelta);
-				MarkSpot(Leg->GetIKTarget(), FColor::Blue);
+				if(Leg->DEBUG_SHOW_ANGLE)
+					MarkSpot(Leg->GetIKTargetFinal(), ((CurrentStep==0) ? FColor::Yellow : FColor::Green));
 			}
 			//Leg->MovementDelta = MovementDelta;
 		}
@@ -76,16 +76,16 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 
 
 
-	AActor* Owner = GetOwner();
-	if (CurrentStep == 0)
-	{
-		DrawDebugLine(GetWorld(), Owner->GetActorLocation(), Owner->GetActorLocation() + Owner->GetActorUpVector() * 50, FColor::Red, false, -1, 0, 3.f);
-	}
-	else
-	{
-		DrawDebugLine(GetWorld(), Owner->GetActorLocation() + Owner->GetActorUpVector() * 25 - Owner->GetActorRightVector()*25, 
-			Owner->GetActorLocation() + Owner->GetActorUpVector() * 25 + Owner->GetActorRightVector() * 25, FColor::Red, false, -1, 0, 3.f);
-	}
+	//AActor* Owner = GetOwner();
+	//if (CurrentStep == 0)
+	//{
+	//	DrawDebugLine(GetWorld(), Owner->GetActorLocation(), Owner->GetActorLocation() + Owner->GetActorUpVector() * 50, FColor::Red, false, -1, 0, 3.f);
+	//}
+	//else
+	//{
+	//	DrawDebugLine(GetWorld(), Owner->GetActorLocation() + Owner->GetActorUpVector() * 25 - Owner->GetActorRightVector()*25, 
+	//		Owner->GetActorLocation() + Owner->GetActorUpVector() * 25 + Owner->GetActorRightVector() * 25, FColor::Red, false, -1, 0, 3.f);
+	//}
 }
 
 void UCrawlerGaitControl::MarkSpot(FVector Point, FColor Colour)
