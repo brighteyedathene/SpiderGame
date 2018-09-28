@@ -1,1 +1,1 @@
-<iframe width="560" height="315" src="https://www.youtube.com/embed/bZomCcE1vPY" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+[![Spider Game](http://img.youtube.com/vi/bZomCcE1vPY/0.jpg)](https://www.youtube.com/watch?v=bZomCcE1vPY "Spider Game")
