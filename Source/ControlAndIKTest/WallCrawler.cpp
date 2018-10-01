@@ -295,17 +295,12 @@ void AWallCrawler::CollectRightInput(float Value)
 void AWallCrawler::TurnAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
-	//AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
-
-	GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::White, FString::Printf(TEXT("(Before) InputYaw = %f"), InputYaw));
 	InputYaw += Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds();
-	GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::White, FString::Printf(TEXT("(After) InputYaw = %f"), InputYaw));
 }
 
 void AWallCrawler::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
-	//AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 	InputPitch += Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds();
 }
 
