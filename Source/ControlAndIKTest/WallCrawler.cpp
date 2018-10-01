@@ -144,6 +144,8 @@ void AWallCrawler::Tick(float DeltaTime)
 		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
 	}
 
+	// Clear all Inputs 
+	FlushInput();
 }
 
 
@@ -275,33 +277,45 @@ void AWallCrawler::SetLatchPoint(FVector Location, FVector Normal)
 
 void AWallCrawler::CollectYawInput(float Value)
 {
-	InputYaw = Value;
+	InputYaw += Value;
 }
 
 void AWallCrawler::CollectPitchInput(float Value)
 {
-	InputPitch = Value;
+	InputPitch += Value;
 }
 void AWallCrawler::CollectForwardInput(float Value)
 {
-	InputForward = Value;
+	InputForward += Value;
 }
 void AWallCrawler::CollectRightInput(float Value)
 {
-	InputRight = Value;
+	InputRight += Value;
 }
 void AWallCrawler::TurnAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
 	//AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
+
+	GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::White, FString::Printf(TEXT("(Before) InputYaw = %f"), InputYaw));
+	InputYaw += Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds();
+	GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::White, FString::Printf(TEXT("(After) InputYaw = %f"), InputYaw));
 }
 
 void AWallCrawler::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
 	//AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+	InputPitch += Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds();
 }
 
+void AWallCrawler::FlushInput()
+{
+	InputYaw = 0;
+	InputPitch = 0;
+	InputForward = 0;
+	InputRight = 0;
+}
 
 void AWallCrawler::CollectJumpInput(float Value)
 {
