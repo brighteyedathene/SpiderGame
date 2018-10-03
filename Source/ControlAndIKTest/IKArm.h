@@ -95,6 +95,7 @@ public:
 	int GaitStepIndex;
 
 	FVector MovementDelta;
+	bool NeedNewTarget;
 
 protected:
 	// Called when the game starts or when spawned
@@ -106,7 +107,7 @@ protected:
 	*/
 	FMatrix GetIKFrameRotationMatrix();
 
-	void SolveIKAndSetArmRotation();
+	bool AttemptSolveIKAndSetArmRotation();
 	
 	bool IsIKTargetUnderNeath();
 	bool IsLimbColliding();
@@ -127,7 +128,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	void SetIKTarget(FVector NewTarget);
-	void PickNewIkTarget(FVector DirectionModifier = FVector(0,0,0));
+	void ProbeForIKTarget(FVector DirectionModifier = FVector(0,0,0));
 
 	FVector GetIKTargetFinal() { return IKTargetFinal; }
 
