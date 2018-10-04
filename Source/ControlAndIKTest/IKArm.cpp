@@ -159,12 +159,15 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 
 FMatrix AIKArm::GetIKFrameRotationMatrix()
 {
+	const float IKPinBlendRange = 50.f;
+	
 	FVector Forward = IKTargetIntermediate - IKRoot->GetComponentLocation();
-	FVector Up;
-	if (IsIKTargetUnderNeath())
-		Up = UnderTargetIKPin->GetComponentLocation() - IKRoot->GetComponentLocation();
-	else
-		Up = IKPin->GetComponentLocation() - IKRoot->GetComponentLocation();
+	
+	FVector RelativeForward = IKRoot->GetComponentQuat().Inverse() * Forward;
+	float IKPinBlend = fmaxf(0, fminf(1, RelativeForward.X / IKPinBlendRange));
+
+	FVector Up = (IKPinBlend * IKPin->GetComponentLocation() + (1 - IKPinBlend) * UnderTargetIKPin->GetComponentLocation()) - IKRoot->GetComponentLocation();
+
 	
 	return FRotationMatrix::MakeFromXZ(Forward, Up);
 }
