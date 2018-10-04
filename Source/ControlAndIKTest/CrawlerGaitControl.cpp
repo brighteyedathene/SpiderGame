@@ -62,7 +62,7 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 			{
 				Leg->MovementDelta = MovementDelta;
 				Leg->NeedNewTarget = true;
-				if(Leg->DEBUG_SHOW_ANGLE)
+				if(Leg->SHOW_DEBUG_INFO)
 					MarkSpot(Leg->GetIKTargetFinal(), ((CurrentStep==0) ? FColor::Yellow : FColor::Green));
 			}
 		}

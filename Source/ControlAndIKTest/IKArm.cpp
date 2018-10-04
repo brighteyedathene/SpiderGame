@@ -66,8 +66,13 @@ void AIKArm::Tick(float DeltaTime)
 	}
 
 	MovementDelta = FVector(0,0,0);
-	//if(DEBUG_SHOW_ANGLE)
-	//	DebugDrawArm();
+	
+	
+	if (SHOW_DEBUG_INFO)
+	{
+		MarkSpot(IKTargetIntermediate, FColor::White);
+		MarkSpot(IKTargetFinal, FColor::Red);
+	}
 }
 
 void AIKArm::SmoothUpdateIKTarget()
@@ -94,44 +99,38 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 {
 	bool SolutionInvalid = false;
 
-	FQuat FrameRotation = GetIKFrameRotationMatrix().ToQuat(); // Rotates (World -> IKFrame)
-	FQuat InverseFrameRotation = FrameRotation.Inverse(); // Rotates (IKFrame -> World)
+	FQuat FinalFrameRotation = GetIKFrameRotationMatrix(IKTargetFinal).ToQuat(); // Rotates (World -> IKFrame)
+	FQuat FrameRotation = GetIKFrameRotationMatrix(IKTargetIntermediate).ToQuat(); // Rotates (World -> IKFrame)
 	FQuat LocalRotation = IKRoot->GetComponentQuat().Inverse() * FrameRotation; // Rotates (IKRoot ->IKFrame)
 	
-	float ForwardFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FrameRotation.GetForwardVector(), IKRoot->GetComponentQuat().GetForwardVector()).GetAngle());
-	float DownFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FrameRotation.GetForwardVector(), -IKRoot->GetComponentQuat().GetUpVector()).GetAngle());
+
+	// Test 1: Is this IKFrame at too steep an angle?
+	float ForwardFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FinalFrameRotation.GetForwardVector(), IKRoot->GetComponentQuat().GetForwardVector()).GetAngle());
+	float DownFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FinalFrameRotation.GetForwardVector(), -IKRoot->GetComponentQuat().GetUpVector()).GetAngle());
 	if (ForwardFrameAngle > MaximumAngle && DownFrameAngle > MaximumAngleUnderneath)
 	{
-		//if (DEBUG_SHOW_ANGLE)
-		//{
-		//	MarkSpot(IKTargetIntermediate, FColor::Blue);
-		//	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("ForwardFrameAngle = %f"), ForwardFrameAngle));
-		//	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("DownFrameAngle = %f"), DownFrameAngle));
-		//}
+		if (SHOW_DEBUG_INFO)
+		{
+			MarkSpot(IKTargetFinal, FColor::Blue);
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("ANGLE FAILURE!"));
+		}
 
 		SolutionInvalid = true;
 	}
 
-
-	// The translated points for the equation
-	FVector Root, Pin, Target;
-	
-	// Translate all 3 points to origin and rotate all 3 points to line up with x-axis
-	FVector ToOrigin = -IKRoot->GetComponentLocation();
-	Root = InverseFrameRotation * (IKRoot->GetComponentLocation() + ToOrigin);
-	Pin = InverseFrameRotation * (IKPin->GetComponentLocation() + ToOrigin);
-	Target = InverseFrameRotation * (IKTargetIntermediate + ToOrigin);
-
 	// Solve IK in 2D from here
 	float UpperArmAngle;
 	float LowerArmAngle;
-	float Distance = FVector::Distance(Root, Target);
+	float Distance = FVector::Distance(IKRoot->GetComponentLocation(), IKTargetIntermediate);
 	if (Distance >= UpperArmLength + LowerArmLength)
 	{
 		UpperArmAngle = 0;
 		LowerArmAngle = 0;
-		if (DEBUG_SHOW_ANGLE)
+		if (SHOW_DEBUG_INFO)
+		{
 			MarkSpot(IKTargetIntermediate, FColor::Cyan);
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("DISTANCE FAILURE!"));
+		}
 
 		SolutionInvalid = true;
 	}
@@ -147,8 +146,11 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 
 	if (IsLimbColliding())
 	{
-		if (DEBUG_SHOW_ANGLE)
+		if (SHOW_DEBUG_INFO)
+		{
 			MarkSpot(IKTargetIntermediate, FColor::Magenta);
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("COLLISION FAILURE!"));
+		}
 
 		//SolutionInvalid = true;
 	}
@@ -157,18 +159,24 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 	return !SolutionInvalid;
 }
 
-FMatrix AIKArm::GetIKFrameRotationMatrix()
+FMatrix AIKArm::GetIKFrameRotationMatrix(FVector IKTarget)
 {
+	/* We will use Forward and Up vectors to get the rotation matrix 
+	*  The Up vector depends on whether the IKTarget is in front of, or behind the IKRoot.
+	*  We can figure this (RelativeForward) out by:
+	*  - getting the difference between IKRoot and IKTarget (as a vector),
+	*  - and rotating it by the inverse of the IKRoot's rotation. 
+	*  Then we can just look at this (RelativeForward) vector's X component to see whether it's >0.
+	*  IKPinBlendRange allows us to interpolate smoothly between the two IKPin locations.
+	*/
+	FVector Forward = IKTarget - IKRoot->GetComponentLocation();
+	
+	// When IKTarget's relative forward is below this value, the IKPins will blend together.
 	const float IKPinBlendRange = 50.f;
-	
-	FVector Forward = IKTargetIntermediate - IKRoot->GetComponentLocation();
-	
 	FVector RelativeForward = IKRoot->GetComponentQuat().Inverse() * Forward;
 	float IKPinBlend = fmaxf(0, fminf(1, RelativeForward.X / IKPinBlendRange));
-
 	FVector Up = (IKPinBlend * IKPin->GetComponentLocation() + (1 - IKPinBlend) * UnderTargetIKPin->GetComponentLocation()) - IKRoot->GetComponentLocation();
 
-	
 	return FRotationMatrix::MakeFromXZ(Forward, Up);
 }
 
@@ -215,11 +223,16 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 		CollisionParameters))
 	{
 		SetIKTarget(Hit.ImpactPoint);
-		UsingUnderTargetIKPin = false;
 		if (AttemptSolveIKAndSetArmRotation())
 		{
+			if (SHOW_DEBUG_INFO)
+				MarkLine(IKRoot->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
 			NeedNewTarget = false;
 			return;
+		}
+		else if (SHOW_DEBUG_INFO)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("1 -- Root->HighTarget"));
 		}
 	}
 
@@ -232,11 +245,16 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 		CollisionParameters))
 	{
 		SetIKTarget(Hit.ImpactPoint);
-		UsingUnderTargetIKPin = false;
 		if (AttemptSolveIKAndSetArmRotation())
 		{
+			if (SHOW_DEBUG_INFO)
+				MarkLine(IKRoot->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
 			NeedNewTarget = false;
 			return;
+		}
+		else if (SHOW_DEBUG_INFO)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("2 -- Root->GroudnTarget"));
 		}
 	}
 
@@ -249,11 +267,16 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 		CollisionParameters))
 	{
 		SetIKTarget(Hit.ImpactPoint);
-		UsingUnderTargetIKPin = false;
 		if (AttemptSolveIKAndSetArmRotation())
 		{
+			if (SHOW_DEBUG_INFO)
+				MarkLine(HighTarget->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
 			NeedNewTarget = false;
 			return;
+		}
+		else if (SHOW_DEBUG_INFO)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("3 -- HighTarget->LowTarget"));
 		}
 	}
 
@@ -266,11 +289,16 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 		CollisionParameters))
 	{
 		SetIKTarget(Hit.ImpactPoint);
-		UsingUnderTargetIKPin = true;
 		if (AttemptSolveIKAndSetArmRotation())
 		{
+			if (SHOW_DEBUG_INFO)
+				MarkLine(GroundTarget->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
 			NeedNewTarget = false;
 			return;
+		}
+		else if (SHOW_DEBUG_INFO)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("4 -- GroundTarget->UnderTarget"));
 		}
 	}
 
@@ -283,17 +311,21 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 		CollisionParameters))
 	{
 		SetIKTarget(Hit.ImpactPoint);
-		UsingUnderTargetIKPin = true;
 		if (AttemptSolveIKAndSetArmRotation())
 		{
+			if (SHOW_DEBUG_INFO)
+				MarkLine(LowTarget->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
 			NeedNewTarget = false;
 			return;
+		}
+		else if (SHOW_DEBUG_INFO)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("5 -- LowTarget->UnderTarget"));
 		}
 	}
 	
 	{
-		SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, -RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
-		UsingRestTarget = true;
+		SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
 		if (AttemptSolveIKAndSetArmRotation())
 		{
 			NeedNewTarget = true;
@@ -303,19 +335,13 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 
 }
 
-bool AIKArm::IsIKTargetUnderNeath()
-{
-	//FQuat InvertRotation = IKRoot->GetComponentQuat().Inverse();
-	//FVector RelativeIKTarget = InvertRotation * (IKTargetIntermediate - IKRoot->GetComponentLocation()) ;
-	//return RelativeIKTarget.X < -1 && RelativeIKTarget.Z < -1;
-	
-	return UsingUnderTargetIKPin;
-}
+
 
 bool AIKArm::IsLimbColliding()
 {
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(this);
+	CollisionParameters.AddIgnoredActor(this->GetParentActor());
 	CollisionParameters.bTraceComplex = true;
 	FHitResult Hit;
 	// From UpperArm to LowerArm
@@ -325,17 +351,23 @@ bool AIKArm::IsLimbColliding()
 		LowerArm->GetComponentLocation(),
 		ECC_Visibility,
 		CollisionParameters))
-	{
+	{	
+		if(SHOW_DEBUG_INFO)
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
+
 		return true;
 	}
 	// From LowerArm to IKTarget ALMOST (We don't want to actually hit the target!)
 	if (GetWorld()->LineTraceSingleByChannel(
 		Hit,
 		LowerArm->GetComponentLocation(),
-		LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength * 0.9f,
+		LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength * 0.6f, // ALMOST
 		ECC_Visibility,
 		CollisionParameters))
 	{
+		if (SHOW_DEBUG_INFO)
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, AActor::GetDebugName(Hit.Actor.Get()));
+
 		return true;
 	}
 
@@ -345,11 +377,7 @@ bool AIKArm::IsLimbColliding()
 void AIKArm::DebugDrawArm()
 {
 	FColor LegColor;
-	if (IsIKTargetUnderNeath())
-	{
-		LegColor = FColor::Orange;
-	}
-	else if (!TargetReachable)
+	if (!TargetReachable)
 	{
 		LegColor = FColor::Red;
 	}
@@ -401,3 +429,8 @@ void AIKArm::MarkSpot(FVector Point, FColor Colour)
 	}
 }
 
+void AIKArm::MarkLine(FVector Start, FVector End, FColor Colour, float Duration)
+{
+	bool IsPersistant = Duration > 0;
+	DrawDebugLine(GetWorld(), Start, End, Colour, IsPersistant, Duration, 0, 1.f);
+}

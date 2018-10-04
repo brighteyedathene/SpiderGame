@@ -89,7 +89,7 @@ public:
 	AIKArm();
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	bool DEBUG_SHOW_ANGLE;
+	bool SHOW_DEBUG_INFO;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	int GaitStepIndex;
@@ -103,13 +103,13 @@ protected:
 
 	bool TargetReachable;
 
-	/* Calculated using the IKRoot as a base, looking at IKTarget with IKPin pointing up.
+	/* Calculated using the IKRoot as a base, looking at IKTarget.
+	* The Up vector is interpolated between the 2 IKPins, based on how far out/in the target is.
 	*/
-	FMatrix GetIKFrameRotationMatrix();
+	FMatrix GetIKFrameRotationMatrix(FVector IKTarget);
 
 	bool AttemptSolveIKAndSetArmRotation();
 	
-	bool IsIKTargetUnderNeath();
 	bool IsLimbColliding();
 
 	/** Find the angle opposite side 'a' in the triangle given by the lengths a, b and c
@@ -122,6 +122,7 @@ protected:
 
 	void DebugDrawArm();
 	void MarkSpot(FVector Point, FColor Colour);
+	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 
 public:	
 	// Called every frame
