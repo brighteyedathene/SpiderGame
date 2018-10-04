@@ -42,6 +42,12 @@ void AIKArm::BeginPlay()
 {
 	Super::BeginPlay();
 	LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
+	
+	IKProbes.Add(FIKProbe(IKRoot, HighTarget));
+	IKProbes.Add(FIKProbe(IKRoot, GroundTarget));
+	IKProbes.Add(FIKProbe(HighTarget, LowTarget));
+	IKProbes.Add(FIKProbe(GroundTarget, UnderTarget));
+	IKProbes.Add(FIKProbe(LowTarget, UnderTarget));
 }
 
 // Called every frame
@@ -92,6 +98,49 @@ void AIKArm::SmoothUpdateIKTarget()
 	//{
 	//	IKTargetIntermediate = IKTargetFinal;
 	//}
+}
+
+void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
+{
+	/*
+	* Shoot rays to find a new IKTarget
+	* If all rays fail, set the IKTarget to the RestTarget position
+	*/
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this);
+	CollisionParameters.AddIgnoredActor(this->GetParentActor());
+	CollisionParameters.bTraceComplex = true;
+	FHitResult Hit;
+
+	for (auto IKProbe : IKProbes)
+	{
+		if (GetWorld()->LineTraceSingleByChannel(
+			Hit,
+			IKProbe.GetStart(),
+			IKProbe.GetModifiedRayEnd(DirectionModifier * DirectionModifierStrength),
+			ECC_Visibility,
+			CollisionParameters))
+		{
+			SetIKTarget(Hit.ImpactPoint);
+			if (AttemptSolveIKAndSetArmRotation())
+			{
+				if (SHOW_DEBUG_INFO)
+					MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Orange, 1);
+				NeedNewTarget = false;
+				return;
+			}
+		}
+	}
+
+	{
+		SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
+		if (AttemptSolveIKAndSetArmRotation())
+		{
+			NeedNewTarget = true;
+			return;
+		}
+	}
+
 }
 
 
@@ -201,139 +250,6 @@ void AIKArm::SetIKTarget(FVector NewTarget)
 	IKTargetTransitionTimer = 0;
 }
 
-void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
-{
-	/* 
-	* Shoot rays to find a new IKTarget
-	* If all rays fail, set the IKTarget to the RestTarget position
-	*/
-	UsingRestTarget = false; // Unless we miss all rays, we won't use the rest target
-	FCollisionQueryParams CollisionParameters;
-	CollisionParameters.AddIgnoredActor(this);
-	CollisionParameters.AddIgnoredActor(this->GetParentActor());
-	CollisionParameters.bTraceComplex = true;
-	FHitResult Hit;
-
-	// Root -> HighTarget
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		IKRoot->GetComponentLocation(),
-		HighTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
-		ECC_Visibility,
-		CollisionParameters))
-	{
-		SetIKTarget(Hit.ImpactPoint);
-		if (AttemptSolveIKAndSetArmRotation())
-		{
-			if (SHOW_DEBUG_INFO)
-				MarkLine(IKRoot->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
-			NeedNewTarget = false;
-			return;
-		}
-		else if (SHOW_DEBUG_INFO)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("1 -- Root->HighTarget"));
-		}
-	}
-
-	// Root -> GroundTarget
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		IKRoot->GetComponentLocation(),
-		GroundTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
-		ECC_Visibility,
-		CollisionParameters))
-	{
-		SetIKTarget(Hit.ImpactPoint);
-		if (AttemptSolveIKAndSetArmRotation())
-		{
-			if (SHOW_DEBUG_INFO)
-				MarkLine(IKRoot->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
-			NeedNewTarget = false;
-			return;
-		}
-		else if (SHOW_DEBUG_INFO)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("2 -- Root->GroudnTarget"));
-		}
-	}
-
-	// HighTarget -> LowTarget
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		HighTarget->GetComponentLocation(),
-		LowTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength,
-		ECC_Visibility,
-		CollisionParameters))
-	{
-		SetIKTarget(Hit.ImpactPoint);
-		if (AttemptSolveIKAndSetArmRotation())
-		{
-			if (SHOW_DEBUG_INFO)
-				MarkLine(HighTarget->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
-			NeedNewTarget = false;
-			return;
-		}
-		else if (SHOW_DEBUG_INFO)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("3 -- HighTarget->LowTarget"));
-		}
-	}
-
-	// GroundTarget -> UnderTarget
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		GroundTarget->GetComponentLocation(),
-		UnderTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength *0.5,
-		ECC_Visibility,
-		CollisionParameters))
-	{
-		SetIKTarget(Hit.ImpactPoint);
-		if (AttemptSolveIKAndSetArmRotation())
-		{
-			if (SHOW_DEBUG_INFO)
-				MarkLine(GroundTarget->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
-			NeedNewTarget = false;
-			return;
-		}
-		else if (SHOW_DEBUG_INFO)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("4 -- GroundTarget->UnderTarget"));
-		}
-	}
-
-	// LowTarget -> UnderTarget
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		LowTarget->GetComponentLocation(),
-		UnderTarget->GetComponentLocation() + DirectionModifier * DirectionModifierStrength *0.5,
-		ECC_Visibility,
-		CollisionParameters))
-	{
-		SetIKTarget(Hit.ImpactPoint);
-		if (AttemptSolveIKAndSetArmRotation())
-		{
-			if (SHOW_DEBUG_INFO)
-				MarkLine(LowTarget->GetComponentLocation(), Hit.ImpactPoint, FColor::Orange, 1);
-			NeedNewTarget = false;
-			return;
-		}
-		else if (SHOW_DEBUG_INFO)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("5 -- LowTarget->UnderTarget"));
-		}
-	}
-	
-	{
-		SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
-		if (AttemptSolveIKAndSetArmRotation())
-		{
-			NeedNewTarget = true;
-			return;
-		}
-	}
-
-}
 
 
 

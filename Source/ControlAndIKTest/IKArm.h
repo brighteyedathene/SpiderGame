@@ -15,6 +15,33 @@ enum class EIKLimbType : uint8
 	Arm
 };
 
+USTRUCT()
+struct FIKProbe
+{
+	GENERATED_BODY()
+
+	USceneComponent* Start;
+	USceneComponent* End;
+	float Length;
+	FIKProbe() {};
+	FIKProbe(USceneComponent* RayStart, USceneComponent* RayEnd)
+	{
+		Start = RayStart;
+		End = RayEnd;
+		Length = FVector::Distance(RayStart->GetComponentLocation(), RayEnd->GetComponentLocation());
+	};
+	FVector GetStart()
+	{
+		return Start->GetComponentLocation();
+	};
+	FVector GetModifiedRayEnd(FVector Modifier)
+	{
+		FVector Direction = (End->GetComponentLocation() + Modifier - Start->GetComponentLocation()).GetSafeNormal();
+		return Start->GetComponentLocation() + Direction * Length;
+	};
+};
+
+
 UCLASS()
 class CONTROLANDIKTEST_API AIKArm : public AActor
 {
@@ -73,7 +100,7 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	EIKLimbType LimbType;
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	TArray<USceneComponent*> ArmTargets;
+	TArray<FIKProbe> IKProbes;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	FVector IKTargetFinal;
