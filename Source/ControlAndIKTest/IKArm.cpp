@@ -64,7 +64,7 @@ void AIKArm::Tick(float DeltaTime)
 
 	if (NeedNewTarget)
 	{
-		ProbeForIKTarget(MovementDelta);
+		ProbeForIKTarget(MovementDelta.GetSafeNormal() * DirectionModifierStrength);
 	}
 	if (NeedNewTarget)
 	{
@@ -76,8 +76,8 @@ void AIKArm::Tick(float DeltaTime)
 	
 	if (SHOW_DEBUG_INFO)
 	{
-		MarkSpot(IKTargetIntermediate, FColor::White);
-		MarkSpot(IKTargetFinal, FColor::Red);
+		//MarkSpot(IKTargetIntermediate, FColor::White);
+		//MarkSpot(IKTargetFinal, FColor::Red);
 	}
 }
 
@@ -117,28 +117,25 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 		if (GetWorld()->LineTraceSingleByChannel(
 			Hit,
 			IKProbe.GetStart(),
-			IKProbe.GetModifiedRayEnd(DirectionModifier * DirectionModifierStrength),
+			IKProbe.GetModifiedRayEnd(DirectionModifier),
 			ECC_Visibility,
 			CollisionParameters))
 		{
+
 			SetIKTarget(Hit.ImpactPoint);
 			if (AttemptSolveIKAndSetArmRotation())
 			{
-				if (SHOW_DEBUG_INFO)
-					MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Orange, 1);
 				NeedNewTarget = false;
 				return;
 			}
 		}
 	}
 
+	SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
+	if (AttemptSolveIKAndSetArmRotation())
 	{
-		SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
-		if (AttemptSolveIKAndSetArmRotation())
-		{
-			NeedNewTarget = true;
-			return;
-		}
+		NeedNewTarget = true;
+		return;
 	}
 
 }
@@ -152,21 +149,27 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 	FQuat FrameRotation = GetIKFrameRotationMatrix(IKTargetIntermediate).ToQuat(); // Rotates (World -> IKFrame)
 	FQuat LocalRotation = IKRoot->GetComponentQuat().Inverse() * FrameRotation; // Rotates (IKRoot ->IKFrame)
 	
-
-	// Test 1: Is this IKFrame at too steep an angle?
-	float ForwardFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FinalFrameRotation.GetForwardVector(), IKRoot->GetComponentQuat().GetForwardVector()).GetAngle());
-	float DownFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FinalFrameRotation.GetForwardVector(), -IKRoot->GetComponentQuat().GetUpVector()).GetAngle());
-	if (ForwardFrameAngle > MaximumAngle && DownFrameAngle > MaximumAngleUnderneath)
 	{
-		if (SHOW_DEBUG_INFO)
+		// Test 1: Is this IKFrame at too steep an angle?
+		float ForwardFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FinalFrameRotation.GetForwardVector(), IKRoot->GetComponentQuat().GetForwardVector()).GetAngle());
+		float DownFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FinalFrameRotation.GetForwardVector(), -IKRoot->GetComponentQuat().GetUpVector()).GetAngle());
+		if (ForwardFrameAngle > MaximumAngle && DownFrameAngle > MaximumAngleUnderneath)
 		{
-			MarkSpot(IKTargetFinal, FColor::Blue);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("ANGLE FAILURE!"));
+			if (SHOW_DEBUG_INFO)
+			{
+				MarkSpot(IKTargetFinal, FColor::Blue);
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("ANGLE FAILURE!"));
+			}
+
+			SolutionInvalid = true;
 		}
-
-		SolutionInvalid = true;
+		// Test 2: Is the final target close enough?
+		float FinalDistance = FVector::Distance(IKRoot->GetComponentLocation(), IKTargetFinal);
+		if (FinalDistance >= UpperArmLength + LowerArmLength)
+		{
+			SolutionInvalid = true;
+		}
 	}
-
 	// Solve IK in 2D from here
 	float UpperArmAngle;
 	float LowerArmAngle;
