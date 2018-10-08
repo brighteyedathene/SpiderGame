@@ -34,6 +34,9 @@ struct FIKProbe
 	{
 		return Start->GetComponentLocation();
 	};
+	/* Gets a normalised ray-end position
+	*  (Start -> (End + Diretcion)) normalized
+	*/
 	FVector GetModifiedRayEnd(FVector Modifier)
 	{
 		FVector Direction = (End->GetComponentLocation() + Modifier - Start->GetComponentLocation()).GetSafeNormal();
@@ -109,7 +112,12 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	float IKTargetTransitionDuration;
-	float IKTargetTransitionTimer;
+	float m_IKTargetTransitionTimer;
+
+
+	FQuat m_IKFrameRotation;
+	float m_IKUpperArmAngle;
+	float m_IKLowerArmAngle;
 
 public:	
 	// Sets default values for this actor's properties
@@ -121,23 +129,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = IK)
 	int GaitStepIndex;
 
-	FVector MovementDelta;
-	bool NeedNewTarget;
+
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	bool TargetReachable;
+	FVector m_bMovementDelta;
+	bool m_bNeedNewTarget;
 
 	/* Calculated using the IKRoot as a base, looking at IKTarget.
 	* The Up vector is interpolated between the 2 IKPins, based on how far out/in the target is.
 	*/
 	FMatrix GetIKFrameRotationMatrix(FVector IKTarget);
 
-	bool AttemptSolveIKAndSetArmRotation();
+	bool AttemptSolveIK();
 	
 	bool IsLimbColliding();
+	bool DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, float LowerArmAngle);
 
 	/** Find the angle opposite side 'a' in the triangle given by the lengths a, b and c
 	* This doesn't check for a valid triangle!!
@@ -154,6 +163,8 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	void ReceiveGaitInput(FVector MovementDelta);
 
 	void SetIKTarget(FVector NewTarget);
 	void ProbeForIKTarget(FVector DirectionModifier = FVector(0,0,0));

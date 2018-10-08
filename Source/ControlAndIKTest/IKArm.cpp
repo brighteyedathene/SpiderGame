@@ -3,7 +3,8 @@
 #include "IKArm.h"
 #include "DrawDebugHelpers.h"
 
-// Sets default values
+
+
 AIKArm::AIKArm()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -37,7 +38,8 @@ AIKArm::AIKArm()
 
 }
 
-// Called when the game starts or when spawned
+
+
 void AIKArm::BeginPlay()
 {
 	Super::BeginPlay();
@@ -50,28 +52,33 @@ void AIKArm::BeginPlay()
 	IKProbes.Add(FIKProbe(LowTarget, UnderTarget));
 }
 
-// Called every frame
+
+
 void AIKArm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 	SmoothUpdateIKTarget();
 
-	if (!AttemptSolveIKAndSetArmRotation())
+	if (!AttemptSolveIK())
 	{
-		NeedNewTarget = true;
+		m_bNeedNewTarget = true;
 	}
 
-	if (NeedNewTarget)
+	if (m_bNeedNewTarget)
 	{
-		ProbeForIKTarget(MovementDelta.GetSafeNormal() * DirectionModifierStrength);
+		ProbeForIKTarget(m_bMovementDelta.GetSafeNormal() * DirectionModifierStrength);
 	}
-	if (NeedNewTarget)
+	if (m_bNeedNewTarget)
 	{
 		ProbeForIKTarget();
 	}
 
-	MovementDelta = FVector(0,0,0);
+
+	UpperArm->SetRelativeRotation(m_IKFrameRotation * FRotator(m_IKUpperArmAngle, 0, 0).Quaternion());
+	LowerArm->SetRelativeRotation(FRotator(m_IKLowerArmAngle, 0, 0));
+
+	m_bMovementDelta = FVector(0,0,0);
 	
 	
 	if (SHOW_DEBUG_INFO)
@@ -81,10 +88,12 @@ void AIKArm::Tick(float DeltaTime)
 	}
 }
 
+
+
 void AIKArm::SmoothUpdateIKTarget()
 {
 	// Simple and bad, should improve so that the target moves up a little between points
-	float t = 0.35;
+	float t = 0.25;
 	IKTargetIntermediate = IKTargetIntermediate * (1 - t) + IKTargetFinal * t;
 
 	//IKTargetTransitionTimer += GetWorld()->GetDeltaSeconds();
@@ -99,6 +108,8 @@ void AIKArm::SmoothUpdateIKTarget()
 	//	IKTargetIntermediate = IKTargetFinal;
 	//}
 }
+
+
 
 void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 {
@@ -123,25 +134,26 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 		{
 
 			SetIKTarget(Hit.ImpactPoint);
-			if (AttemptSolveIKAndSetArmRotation())
+			if (AttemptSolveIK())
 			{
-				NeedNewTarget = false;
+				m_bNeedNewTarget = false;
 				return;
 			}
 		}
 	}
 
 	SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
-	if (AttemptSolveIKAndSetArmRotation())
+	if (AttemptSolveIK())
 	{
-		NeedNewTarget = true;
+		m_bNeedNewTarget = true;
 		return;
 	}
 
 }
 
 
-bool AIKArm::AttemptSolveIKAndSetArmRotation()
+
+bool AIKArm::AttemptSolveIK()
 {
 	bool SolutionInvalid = false;
 
@@ -149,6 +161,8 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 	FQuat FrameRotation = GetIKFrameRotationMatrix(IKTargetIntermediate).ToQuat(); // Rotates (World -> IKFrame)
 	FQuat LocalRotation = IKRoot->GetComponentQuat().Inverse() * FrameRotation; // Rotates (IKRoot ->IKFrame)
 	
+
+	// First, check the final IK target
 	{
 		// Test 1: Is this IKFrame at too steep an angle?
 		float ForwardFrameAngle = FMath::RadiansToDegrees(FQuat::FindBetween(FinalFrameRotation.GetForwardVector(), IKRoot->GetComponentQuat().GetForwardVector()).GetAngle());
@@ -158,7 +172,7 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 			if (SHOW_DEBUG_INFO)
 			{
 				MarkSpot(IKTargetFinal, FColor::Blue);
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("ANGLE FAILURE!"));
+				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("ANGLE FAILURE!"));
 			}
 
 			SolutionInvalid = true;
@@ -169,8 +183,18 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 		{
 			SolutionInvalid = true;
 		}
+		
+		float FinalUpperArmAngle = FindAngleA(LowerArmLength, FinalDistance, UpperArmLength);
+		float FinalLowerArmAngle = 180 + FindAngleA(FinalDistance, LowerArmLength, UpperArmLength);
+		
+		if (DoesThisSolutionCollide(IKRoot->GetComponentQuat().Inverse() * FinalFrameRotation, FinalUpperArmAngle, FinalLowerArmAngle))
+		{
+
+			SolutionInvalid = true;
+		}
 	}
-	// Solve IK in 2D from here
+
+	// Solve IK for the intermediate target
 	float UpperArmAngle;
 	float LowerArmAngle;
 	float Distance = FVector::Distance(IKRoot->GetComponentLocation(), IKTargetIntermediate);
@@ -181,7 +205,7 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 		if (SHOW_DEBUG_INFO)
 		{
 			MarkSpot(IKTargetIntermediate, FColor::Cyan);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("DISTANCE FAILURE!"));
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("DISTANCE FAILURE!"));
 		}
 
 		SolutionInvalid = true;
@@ -192,24 +216,15 @@ bool AIKArm::AttemptSolveIKAndSetArmRotation()
 		LowerArmAngle = 180 + FindAngleA(Distance, LowerArmLength, UpperArmLength);
 	}
 
-	// Align the limb to the IK Frame, and set the pitch for each bone
-	UpperArm->SetRelativeRotation(LocalRotation * FRotator(UpperArmAngle, 0, 0).Quaternion());
-	LowerArm->SetRelativeRotation(FRotator(LowerArmAngle, 0, 0));
 
-	if (IsLimbColliding())
-	{
-		if (SHOW_DEBUG_INFO)
-		{
-			MarkSpot(IKTargetIntermediate, FColor::Magenta);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("COLLISION FAILURE!"));
-		}
+	m_IKFrameRotation = LocalRotation;
+	m_IKUpperArmAngle = UpperArmAngle;
+	m_IKLowerArmAngle = LowerArmAngle;
 
-		//SolutionInvalid = true;
-	}
-	
-	
 	return !SolutionInvalid;
 }
+
+
 
 FMatrix AIKArm::GetIKFrameRotationMatrix(FVector IKTarget)
 {
@@ -232,6 +247,8 @@ FMatrix AIKArm::GetIKFrameRotationMatrix(FVector IKTarget)
 	return FRotationMatrix::MakeFromXZ(Forward, Up);
 }
 
+
+
 float AIKArm::FindAngleA(float a, float b, float c)
 {
 	return FMath::RadiansToDegrees(
@@ -246,13 +263,13 @@ float AIKArm::FindAngleA(float a, float b, float c)
 }
 
 
+
 void AIKArm::SetIKTarget(FVector NewTarget)
 {
 	IKTargetFinal = NewTarget;
 	IKTargetInTransit = true;
-	IKTargetTransitionTimer = 0;
+	m_IKTargetTransitionTimer = 0;
 }
-
 
 
 
@@ -280,7 +297,7 @@ bool AIKArm::IsLimbColliding()
 	if (GetWorld()->LineTraceSingleByChannel(
 		Hit,
 		LowerArm->GetComponentLocation(),
-		LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength * 0.6f, // ALMOST
+		LowerArm->GetComponentLocation() + LowerArm->GetForwardVector() * LowerArmLength * 0.8f, // ALMOST
 		ECC_Visibility,
 		CollisionParameters))
 	{
@@ -293,19 +310,70 @@ bool AIKArm::IsLimbColliding()
 	return false;
 }
 
-void AIKArm::DebugDrawArm()
+
+
+bool AIKArm::DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, float LowerArmAngle)
 {
-	FColor LegColor;
-	if (!TargetReachable)
+	// Get the points!
+	// Base: IKRoot->GetComponentLocation()
+	// Mid: RootRotation * LocalRotation * FRotator(UpperAngle, 0, 0) 
+	// End: IKTargetFinal
+
+	FQuat UpperArmRotation = IKRoot->GetComponentQuat() * (FrameRotation * FRotator(UpperArmAngle, 0, 0).Quaternion());
+	FQuat LowerArmRotation = UpperArmRotation * FRotator(LowerArmAngle, 0, 0).Quaternion();
+
+	FVector JointPosition = IKRoot->GetComponentLocation() + UpperArmRotation.GetForwardVector() * UpperArmLength;
+	FVector EndPosition = JointPosition + LowerArmRotation.GetForwardVector() * LowerArmLength * 0.8; // Don't quite hit the target.
+
+
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this);
+	CollisionParameters.AddIgnoredActor(this->GetParentActor());
+	CollisionParameters.bTraceComplex = true;
+	FHitResult Hit;
+
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		IKRoot->GetComponentLocation(),
+		JointPosition,
+		ECC_Visibility,
+		CollisionParameters))
 	{
-		LegColor = FColor::Red;
+		if (SHOW_DEBUG_INFO)
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
+
+		return true;
 	}
-	else
+	// From LowerArm to IKTarget ALMOST (We don't want to actually hit the target!) see EndPosition
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		JointPosition,
+		EndPosition,
+		ECC_Visibility,
+		CollisionParameters))
 	{
-		LegColor = FColor::Black;
+		if (SHOW_DEBUG_INFO)
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, AActor::GetDebugName(Hit.Actor.Get()));
+
+		return true;
 	}
 
-	
+	return false;
+}
+
+
+
+void AIKArm::ReceiveGaitInput(FVector MovementDelta)
+{
+	m_bNeedNewTarget = true;
+	m_bMovementDelta = MovementDelta;
+}
+
+
+void AIKArm::DebugDrawArm()
+{
+	FColor LegColor = FColor::Red;
+
 	// Upper Arm
 	DrawDebugLine(
 		GetWorld(),
