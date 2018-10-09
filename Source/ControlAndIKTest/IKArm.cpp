@@ -93,7 +93,7 @@ void AIKArm::Tick(float DeltaTime)
 void AIKArm::SmoothUpdateIKTarget()
 {
 	// Simple and bad, should improve so that the target moves up a little between points
-	float t = 0.25;
+	float t = 0.4;
 	IKTargetIntermediate = IKTargetIntermediate * (1 - t) + IKTargetFinal * t;
 
 	//IKTargetTransitionTimer += GetWorld()->GetDeltaSeconds();
@@ -132,16 +132,17 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			ECC_Visibility,
 			CollisionParameters))
 		{
-
 			SetIKTarget(Hit.ImpactPoint);
 			if (AttemptSolveIK())
 			{
 				m_bNeedNewTarget = false;
 				return;
 			}
+
 		}
 	}
 
+	// As a fallback, put the IKTarget in the rest position
 	SetIKTarget(RestTarget->GetComponentLocation() - FVector(0, 0, RestTargetSlack)); //TODO make this better somehow (rest target + gravity*slack)
 	if (AttemptSolveIK())
 	{
