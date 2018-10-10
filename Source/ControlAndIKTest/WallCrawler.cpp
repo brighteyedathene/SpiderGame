@@ -56,11 +56,14 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
 	// "turn" handles devices that provide an absolute delta, such as a mouse.
 	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
-	// turnrate isn't implemented yet :p
 	PlayerInputComponent->BindAxis("Turn", this, &AWallCrawler::CollectYawInput);
 	PlayerInputComponent->BindAxis("TurnRate", this, &AWallCrawler::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &AWallCrawler::CollectPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AWallCrawler::LookUpAtRate);
+
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AWallCrawler::JumpPressed);
+	PlayerInputComponent->BindAction("Jump", IE_Released, this, &AWallCrawler::JumpReleased);
+	PlayerInputComponent->BindAction("Drop", IE_Pressed, this, &AWallCrawler::DropPressed);
 
 }
 
@@ -117,23 +120,48 @@ void AWallCrawler::Tick(float DeltaTime)
 	case ECrawlerState::Falling:
 		
 		// try to cling
-
-		// else do nothing (continue to fall)
-		
-		break;
-
-	case ECrawlerState::Crawling:
-
+	{
 		FVector AverageLocation, AverageNormal;
 		float SuggestedClimbFactor;
 		int HitCount;
 		if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
 		{
 			SetLatchPoint(AverageLocation, AverageNormal);
+			CrawlerState = ECrawlerState::Crawling;
+			JumpTimer = 0;
 		}
-		else
+	}
+
+
+		// else do nothing (continue to fall)
+		
+		break;
+
+	case ECrawlerState::Jumping:
+
+		// Start falling...
+		if (JumpTimer > MaxJumpTime)
 		{
-			// Keep the old latch point
+			CrawlerState = ECrawlerState::Falling;
+		}
+
+		// ... or continue to ascend
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Jumping!"));
+		AddMovementInput(FVector(0, 0, 1), JumpForce * GetWorld()->GetDeltaSeconds());
+		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
+
+		JumpTimer += GetWorld()->GetDeltaSeconds();
+
+		break;
+
+	case ECrawlerState::Crawling:
+	{
+		FVector AverageLocation, AverageNormal;
+		float SuggestedClimbFactor;
+		int HitCount;
+		if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
+		{
+			SetLatchPoint(AverageLocation, AverageNormal);
 		}
 
 		ClingToPoint(LatchPoint, LatchNormal);
@@ -142,6 +170,7 @@ void AWallCrawler::Tick(float DeltaTime)
 		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
 
 		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
+	}
 	}
 
 	// Clear all Inputs 
@@ -202,10 +231,40 @@ bool AWallCrawler::ExploreEnvironmentWithRays(
 					{
 						MaxClimb = fmaxf(MaxClimb, fabsf(MoveDotRay) - fabsf(UpDotRay));
 					}
+
+					DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Red, false, -1.f, 0, 1.f);
 				}
 			}
 		}
 	}
+
+	//// Additional model-relative downward probes can help navigate sharp axis-aligned edges
+	//if (HitCountSum <= 4)
+	//{
+	//	FVector ModelForward = RootComponent->GetForwardVector();
+	//	FVector ModelRight = RootComponent->GetRightVector();
+	//	FVector ModelUp = RootComponent->GetUpVector();
+	//
+	//	for (float x = -delta / 2; x <= delta / 2; x += delta)
+	//	{
+	//		for (float y = -delta / 2; y <= delta / 2; y += delta)
+	//		{
+	//			FVector Ray = (ModelForward * x + ModelRight * y - ModelUp * delta).GetSafeNormal();
+	//			if (GetWorld()->LineTraceSingleByChannel(Hit, O, O + Ray * SurfaceGroundRayLength, TraceChannel, CollisionParameters))
+	//			{
+	//				LocationSum += Hit.ImpactPoint;
+	//				NormalSum -= Ray;
+	//				HitCountSum++;
+	//
+	//				DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Red, true, 2.f, 0, 1.f);
+	//			}
+	//			else
+	//			{
+	//				DrawDebugLine(GetWorld(), O, O + Ray *  SurfaceGroundRayLength, FColor::White, true, 2.f, 0, 1.f);
+	//			}
+	//		}
+	//	}
+	//}
 
 	// If there were any hits, we can write something to our pointers
 	if (HitCountSum > 0)
@@ -312,11 +371,22 @@ void AWallCrawler::FlushInput()
 	InputRight = 0;
 }
 
-void AWallCrawler::CollectJumpInput(float Value)
+void AWallCrawler::JumpPressed()
+{
+	CrawlerState = ECrawlerState::Jumping;
+}
+void AWallCrawler::JumpReleased()
+{
+	if (JumpTimer > MinJumpTime)
+	{
+		CrawlerState = ECrawlerState::Falling;
+	}
+}
+void AWallCrawler::DropPressed()
 {
 
 }
-void AWallCrawler::CollectReleaseInput(float Value)
+void AWallCrawler::DropReleased()
 {
 
 }

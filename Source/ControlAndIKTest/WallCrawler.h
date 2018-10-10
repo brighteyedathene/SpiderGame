@@ -17,7 +17,9 @@ enum class ECrawlerState : uint8
 	/** Lock movement to surfaces. */
 	Crawling,
 	/** Free-falling. */
-	Falling
+	Falling,
+	/** Jumping (still rising) */
+	Jumping
 };
 
 
@@ -86,12 +88,23 @@ public:
 	float RotationCorrectionAlpha;
 
 
-	/** Raycasting shit - somethign complains about this stuff*/
+	/** Raycasting shit - somethign complains about making this a UPROPERTY */
 	//UPROPERTY(EditAnywhere, Category = WallCrawling)
 	FCollisionQueryParams CollisionParameters;
 	//UPROPERTY(EditAnywhere, Category = WallCrawling)
 	ECollisionChannel TraceChannel;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
+	float MaxJumpTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
+	float MinJumpTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
+	float JumpForce;
+
+	float JumpTimer;
 
 protected:
 	// Called when the game starts or when spawned
@@ -101,8 +114,12 @@ protected:
 	void CollectRightInput(float Value);
 	void CollectYawInput(float Value);
 	void CollectPitchInput(float Value);
-	void CollectJumpInput(float Value);
-	void CollectReleaseInput(float Value);
+	
+	void JumpPressed();
+	void JumpReleased();
+	void DropPressed();
+	void DropReleased();
+	
 	void FlushInput();
 
 	void RotateTowardsNormal(FVector Normal, float t);
@@ -139,7 +156,6 @@ protected:
 	void ClingToPoint(FVector EnLocation, FVector EndNormal);
 
 	/**
-	* NEED TO UPDATE THESE
 	* Called via input to turn at a given rate.
 	* @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
 	*/
@@ -153,6 +169,7 @@ protected:
 
 	float LocalPitch;
 	float LocalYaw;
+
 
 	FQuat FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector);
 
