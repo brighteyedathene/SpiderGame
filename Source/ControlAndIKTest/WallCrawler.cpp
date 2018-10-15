@@ -22,7 +22,6 @@ AWallCrawler::AWallCrawler()
 	MySphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollider"));
 	RootComponent = MySphereComponent;
 
-	MySphereComponent->InitSphereRadius(ColliderSize);
 	MySphereComponent->SetCollisionProfileName(TEXT("Pawn"));
 	
 	CrawlerMovement = CreateDefaultSubobject<UCrawlerMovement>("CrawlerMovement");
@@ -38,10 +37,6 @@ AWallCrawler::AWallCrawler()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false; 
-
-	CollisionParameters.AddIgnoredActor(this);
-	CollisionParameters.bTraceComplex = true;
-	TraceChannel = ECC_Visibility;
 
 }
 
@@ -71,10 +66,6 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 void AWallCrawler::BeginPlay()
 {
 	Super::BeginPlay();
-	MySphereComponent->SetSphereRadius(ColliderSize);
-
-
-	CrawlerState = ECrawlerState::Crawling;
 }
 
 // Called every frame
@@ -105,233 +96,113 @@ void AWallCrawler::Tick(float DeltaTime)
 	const FVector CameraForward = FRotationMatrix(Rotation).GetUnitAxis(EAxis::X);
 	const FVector CameraRight = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Y);
 
-	FVector FDirection = ProjectToPlane(CameraForward, RootComponent->GetUpVector()).GetSafeNormal();
-	FVector RDirection = ProjectToPlane(CameraRight, RootComponent->GetUpVector()).GetSafeNormal();
+	FVector FDirection = FVector::VectorPlaneProject(CameraForward, RootComponent->GetUpVector()).GetSafeNormal();
+	FVector RDirection = FVector::VectorPlaneProject(CameraRight, RootComponent->GetUpVector()).GetSafeNormal();
 
 	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
 	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
 	MovementDirection.Normalize();
 
 
-	// Handle the crawling behaviour
-	switch(CrawlerState)
-	{
 
-	case ECrawlerState::Falling:
-		
-		// try to cling
+
+	CrawlerMovement->SetCameraForward(CameraBoom->GetForwardVector());
+	AddMovementInput(MovementDirection, MovementIntensity);
+
+	if (CrawlerMovement->IsCrawling())
 	{
-		FVector AverageLocation, AverageNormal;
-		float SuggestedClimbFactor;
-		int HitCount;
-		if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
-		{
-			SetLatchPoint(AverageLocation, AverageNormal);
-			CrawlerState = ECrawlerState::Crawling;
-			JumpTimer = 0;
-		}
+		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
 	}
 
 
+	//   ////////////////////////
+	//    PURGE BELOW THIS LINE
+	//   ////////////////////////
+	// Handle the crawling behaviour
+
+	/*
+
+
+
+	switch (CrawlerState)
+	{
+
+	case ECrawlerState::Falling:
+
+		AirTimer += GetWorld()->GetDeltaSeconds();
+
+		// try to cling
+		{
+			FVector AverageLocation, AverageNormal;
+			float SuggestedClimbFactor;
+			int HitCount;
+			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
+			{
+				SetLatchPoint(AverageLocation, AverageNormal);
+				CrawlerState = ECrawlerState::Crawling;
+				AirTimer = 0;
+				CrawlerMovement->SetFalling(false);
+			}
+		}
+		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
+
 		// else do nothing (continue to fall)
+		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
+	
 		
 		break;
 
 	case ECrawlerState::Jumping:
 
+		AirTimer += GetWorld()->GetDeltaSeconds();
+
 		// Start falling...
-		if (JumpTimer > MaxJumpTime)
+		if (AirTimer > MaxJumpTime)
 		{
 			CrawlerState = ECrawlerState::Falling;
 		}
+		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
+
+
 
 		// ... or continue to ascend
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Jumping!"));
-		AddMovementInput(FVector(0, 0, 1), JumpForce * GetWorld()->GetDeltaSeconds());
+		//AddMovementInput(FVector(0, 0, 1), JumpForce);
+		RootComponent->AddRelativeLocation(JumpDirection * JumpForce * (1 - AirTimer/MaxJumpTime) * GetWorld()->GetDeltaSeconds(), true);
 		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
-
-		JumpTimer += GetWorld()->GetDeltaSeconds();
 
 		break;
 
 	case ECrawlerState::Crawling:
-	{
-		FVector AverageLocation, AverageNormal;
-		float SuggestedClimbFactor;
-		int HitCount;
-		if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
 		{
-			SetLatchPoint(AverageLocation, AverageNormal);
+			FVector AverageLocation, AverageNormal;
+			float SuggestedClimbFactor;
+			int HitCount;
+			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
+			{
+				SetLatchPoint(AverageLocation, AverageNormal);
+			}
+
+			ClingToPoint(LatchPoint, LatchNormal);
+
+			AddMovementInput(RootComponent->GetUpVector(), SuggestedClimbFactor * MovementSpeed * GetWorld()->GetDeltaSeconds());
 		}
-
-		ClingToPoint(LatchPoint, LatchNormal);
-
-		AddMovementInput(RootComponent->GetUpVector(), SuggestedClimbFactor * MovementSpeed * GetWorld()->GetDeltaSeconds());
 		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
 
 		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
+		
 	}
-	}
+
+
+
+	*/
 
 	// Clear all Inputs 
 	FlushInput();
-}
 
-
-bool AWallCrawler::ExploreEnvironmentWithRays(
-	FVector* pAvgLocation, 
-	FVector* pAvgNormal, 
-	int* pHitCount, 
-	float* pSuggestedClimbFactor,
-	FVector MovementDirection, 
-	int RaysPerAxis)
-{
-	// Increment x, y, z by this delta during the loop
-	// so that we shoot the right number of rays per axis
-	float delta = 2.f / (RaysPerAxis - 1);
-
-	const FVector O = RootComponent->GetComponentLocation();
-	const FVector F = FVector::ForwardVector;
-	const FVector R = FVector::RightVector;
-	const FVector U = FVector::UpVector;  
-	
-	// We write to these values in the following loop
-	int HitCountSum = 0;
-	FVector NormalSum = FVector(0, 0, 0);
-	FVector LocationSum = FVector(0, 0, 0);
-	float MaxClimb = 0;
-	FHitResult Hit;
-
-	// Probe for hits, accumulate normal and location sums, calculate climb value
-	for (float x = -1.f; x <= 1.f; x += delta)
-	{
-		for (float y = -1.f; y <= 1.f; y += delta)
-		{
-			for (float z = -1.f; z <= 1.f; z += delta)
-			{
-				FVector Ray = (F * x + R * y + U * z).GetSafeNormal();
-				if (GetWorld()->LineTraceSingleByChannel(Hit, O, O + Ray * SurfaceGroundRayLength, TraceChannel, CollisionParameters))
-				{
-					LocationSum += Hit.ImpactPoint;
-					NormalSum -= Ray; // subtract, because we want the opposing direction to the ray
-					HitCountSum++;
-
-					// Does this ray conflict with the movement direction enough to warrant a climb value?
-					// This is determined by measuring the dot product of the ray and 3 other vectors:
-					// - MovementDirection, 
-					// - Up (relative to the model), 
-					// - Right (relative to MovementDirection)
-					// The climb value is maximised when the ray directly opposes movement
-					const float MoveDotRay = FVector::DotProduct(MovementDirection, -Ray);
-					const float UpDotRay = FVector::DotProduct(RootComponent->GetUpVector(), -Ray);
-					const float RightDotRay = FVector::DotProduct(FVector::CrossProduct(MovementDirection, RootComponent->GetUpVector()), -Ray);
-					const float VertThreshold = 0.4;
-					const float HoriThreshold = 0.4;
-					if (MoveDotRay < 0 && fabsf(UpDotRay) < VertThreshold && fabsf(RightDotRay) < HoriThreshold)
-					{
-						MaxClimb = fmaxf(MaxClimb, fabsf(MoveDotRay) - fabsf(UpDotRay));
-					}
-
-					DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Red, false, -1.f, 0, 1.f);
-				}
-			}
-		}
-	}
-
-	//// Additional model-relative downward probes can help navigate sharp axis-aligned edges
-	//if (HitCountSum <= 4)
-	//{
-	//	FVector ModelForward = RootComponent->GetForwardVector();
-	//	FVector ModelRight = RootComponent->GetRightVector();
-	//	FVector ModelUp = RootComponent->GetUpVector();
-	//
-	//	for (float x = -delta / 2; x <= delta / 2; x += delta)
-	//	{
-	//		for (float y = -delta / 2; y <= delta / 2; y += delta)
-	//		{
-	//			FVector Ray = (ModelForward * x + ModelRight * y - ModelUp * delta).GetSafeNormal();
-	//			if (GetWorld()->LineTraceSingleByChannel(Hit, O, O + Ray * SurfaceGroundRayLength, TraceChannel, CollisionParameters))
-	//			{
-	//				LocationSum += Hit.ImpactPoint;
-	//				NormalSum -= Ray;
-	//				HitCountSum++;
-	//
-	//				DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Red, true, 2.f, 0, 1.f);
-	//			}
-	//			else
-	//			{
-	//				DrawDebugLine(GetWorld(), O, O + Ray *  SurfaceGroundRayLength, FColor::White, true, 2.f, 0, 1.f);
-	//			}
-	//		}
-	//	}
-	//}
-
-	// If there were any hits, we can write something to our pointers
-	if (HitCountSum > 0)
-	{
-		*pAvgLocation = LocationSum / HitCountSum;
-		*pAvgNormal = NormalSum / HitCountSum;
-		*pHitCount = HitCountSum;
-		*pSuggestedClimbFactor = MaxClimb;
-		return true;
-	}
-	else
-	{
-		return false;
-	}
 }
 
 
 
-void AWallCrawler::ClingToPoint(FVector EndLocation, FVector EndNormal)
-{
-	// Try to move towards a point above EndLocation while rotating in line with EndNormal
-	// Uses AddMovementInput(..) so that collision and velocity limiting can be applied
-	// WARNING: If the point can't be reached within SurfaceIdealDistanceThreshold, then you might get stuck!
-	const FVector TargetLocation = EndLocation + EndNormal * SurfaceIdealDistance;
-	const float Distance = FVector::Distance(TargetLocation, RootComponent->GetComponentLocation());
-	float Force = fminf(MovementSpeed, Distance);
-	Force = fmaxf(0, Force - SurfaceIdealDistanceThreshold);
-	if (Force > 0)
-	{
-		AddMovementInput(TargetLocation - RootComponent->GetComponentLocation(), Force * GetWorld()->GetDeltaSeconds());
-	}
-	RotateTowardsNormal(EndNormal, RotationCorrectionAlpha);
-}
-
-
-
-void AWallCrawler::RotateTowardsNormal(FVector Normal, float t)
-{
-	// We will calculate a forward vector based on the model rotation, the normal and the camera
-	const FVector CamForward = CameraBoom->GetComponentRotation().Vector();
-	const FVector ModelUp = RootComponent->GetUpVector();
-	const FVector ModelForward = ProjectToPlane(CamForward, ModelUp).GetSafeNormal();
-
-	// We want to align our forward vector with the plane given by the normal
-	const FVector PlaneForward = ProjectToPlane(ModelForward, Normal).GetSafeNormal();
-
-	// We also want to flatten our forward vector against the plane defined by the model's pitch axis
-	// This prevents the model from turning sideways (on its yaw axis)
-	const FVector PitchAxis = FVector::CrossProduct(ModelForward, ModelUp).GetSafeNormal();
-	FVector FinalForward = ProjectToPlane(PlaneForward, PitchAxis);
-
-	// Calculate the rotation given by our forward vector and the normal (interpreted as up)
-	const FVector O = RootComponent->GetComponentLocation();
-	FQuat LookAtQuat = FindLookAtQuat(O, O + FinalForward * 1000, Normal);
-
-	// Apply the rotation to RootComponent
-	FQuat RootQuat = RootComponent->GetComponentQuat();
-	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t);
-	RootComponent->SetRelativeRotation(FinalQuat);
-}
-
-
-void AWallCrawler::SetLatchPoint(FVector Location, FVector Normal)
-{
-	LatchPoint = Location;
-	LatchNormal = Normal;
-}
 
 
 void AWallCrawler::CollectYawInput(float Value)
@@ -373,14 +244,20 @@ void AWallCrawler::FlushInput()
 
 void AWallCrawler::JumpPressed()
 {
-	CrawlerState = ECrawlerState::Jumping;
+	//if (AirTimer == 0)
+	//{
+	//	CrawlerState = ECrawlerState::Jumping;
+	//	CrawlerMovement->SetFalling(true);
+	//	JumpDirection = (RootComponent->GetUpVector() + CrawlerMovement->GetVelocity().GetSafeNormal()).GetClampedToMaxSize(1.f)//	
+	//}
 }
 void AWallCrawler::JumpReleased()
 {
-	if (JumpTimer > MinJumpTime)
-	{
-		CrawlerState = ECrawlerState::Falling;
-	}
+	//if (AirTimer > MinJumpTime)
+	//{
+	//	CrawlerState = ECrawlerState::Falling;
+	//	CrawlerMovement->SetFalling(true);
+	//}
 }
 void AWallCrawler::DropPressed()
 {
@@ -391,28 +268,6 @@ void AWallCrawler::DropReleased()
 
 }
 
-FVector ForwardRightUpYoRightUpBack(const FVector& V)
-{
-	return FVector(V.Y, V.Z, -V.X);
-}
-FVector RUBtoFRU(const FVector& V)
-{
-	return FVector(-V.Z, V.X, V.Y);
-}
-
-FQuat AWallCrawler::FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector)
-{
-	const FVector XAxis = (LookAtPosition - EyePosition).GetSafeNormal();
-	const FVector YAxis = (UpVector ^ XAxis).GetSafeNormal();
-	const FVector ZAxis = XAxis ^ YAxis;
-
-	return FRotationMatrix::MakeFromXZ(XAxis, ZAxis).ToQuat();
-}
-
-FVector AWallCrawler::ProjectToPlane(const FVector& U, const FVector& N)
-{
-	return U - ((FVector::DotProduct(U, N)) / N.SizeSquared()) * N;
-}
 
 void AWallCrawler::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
