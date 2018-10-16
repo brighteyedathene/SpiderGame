@@ -12,15 +12,6 @@
 class USphereComponent;
 
 
-enum class ECrawlerState : uint8
-{
-	/** Lock movement to surfaces. */
-	Crawling,
-	/** Free-falling. */
-	Falling
-};
-
-
 UCLASS()
 class CONTROLANDIKTEST_API AWallCrawler : public APawn
 {
@@ -61,36 +52,16 @@ public:
 	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
-	
-	/** Radius of collider */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float ColliderSize;
 
-	/** Lenmgth of surface feelers */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float SurfaceGroundRayLength;
 
-	/** How far will the crawler try to stay */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float SurfaceIdealDistance;
-
-	/** How close is good enough to stop clinging */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WallCrawling)
-	float SurfaceIdealDistanceThreshold;
 
 	UPROPERTY(EditAnywhere, Category = WallCrawling)
 	float MovementSpeed;
 
-	/** How fast will the crawler correct its orientation */
-	UPROPERTY(EditAnywhere, Category = WallCrawling)
-	float RotationCorrectionAlpha;
 
 
-	/** Raycasting shit - somethign complains about this stuff*/
-	//UPROPERTY(EditAnywhere, Category = WallCrawling)
-	FCollisionQueryParams CollisionParameters;
-	//UPROPERTY(EditAnywhere, Category = WallCrawling)
-	ECollisionChannel TraceChannel;
+
+
 
 
 protected:
@@ -101,45 +72,17 @@ protected:
 	void CollectRightInput(float Value);
 	void CollectYawInput(float Value);
 	void CollectPitchInput(float Value);
-	void CollectJumpInput(float Value);
-	void CollectReleaseInput(float Value);
+	
+	void JumpPressed();
+	void JumpReleased();
+	void DropPressed();
+	void DropReleased();
+	
 	void FlushInput();
 
-	void RotateTowardsNormal(FVector Normal, float t);
 
-	/** This point anchors the crawler to a surface.
-	* As long as there is a LatchPoint, the crawler will not begin to fall
-	*/
-	FVector LatchPoint, LatchNormal;
-	void SetLatchPoint(FVector Location, FVector Normal);
-
-
-
-	ECrawlerState CrawlerState;
-
-	
-	/** Checks all directions using RaysPerAxis
-	* This function takes a number of pointers to write return values in
-	* @param pAvgLocation	The mean position of each ray hit - misses do not contribute
-	* @param pAvgNormal	The mean normal of each ray hit - misses do not contribute
-	* @param pHitCount	The number of rays to Hit
-	* @param pSuggestedClimbFactor	Increases towards 1 if a ray hit opposes MovementDirection
-	* @param MovementDirection	The movement direction given by the current frame's movment input
-	* @param RaysPerAxis	How many Rays to fire along each axis (5 is good, but 5*5*5 rays!!)
-	* Returns false only if no rays hit
-	*/
-	bool ExploreEnvironmentWithRays(
-		FVector* pAvgLocation,
-		FVector* pAvgNormal,
-		int* pHitCount,
-		float* pSuggestedClimbFactor,
-		FVector MovementDirection,
-		int RaysPerAxis);
-
-	void ClingToPoint(FVector EnLocation, FVector EndNormal);
 
 	/**
-	* NEED TO UPDATE THESE
 	* Called via input to turn at a given rate.
 	* @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
 	*/
@@ -154,9 +97,6 @@ protected:
 	float LocalPitch;
 	float LocalYaw;
 
-	FQuat FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector);
-
-	FVector ProjectToPlane(const FVector& U, const FVector& N);
 
 	void MarkSpot(FVector Point, FColor Colour, float Duration);
 

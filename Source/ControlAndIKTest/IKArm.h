@@ -15,6 +15,36 @@ enum class EIKLimbType : uint8
 	Arm
 };
 
+USTRUCT()
+struct FIKProbe
+{
+	GENERATED_BODY()
+
+	USceneComponent* Start;
+	USceneComponent* End;
+	float Length;
+	FIKProbe() {};
+	FIKProbe(USceneComponent* RayStart, USceneComponent* RayEnd)
+	{
+		Start = RayStart;
+		End = RayEnd;
+		Length = FVector::Distance(RayStart->GetComponentLocation(), RayEnd->GetComponentLocation());
+	};
+	FVector GetStart()
+	{
+		return Start->GetComponentLocation();
+	};
+	/* Gets a normalised ray-end position
+	*  (Start -> (End + Diretcion)) normalized
+	*/
+	FVector GetModifiedRayEnd(FVector Modifier)
+	{
+		FVector Direction = (End->GetComponentLocation() + Modifier - Start->GetComponentLocation()).GetSafeNormal();
+		return Start->GetComponentLocation() + Direction * Length;
+	};
+};
+
+
 UCLASS()
 class CONTROLANDIKTEST_API AIKArm : public AActor
 {
@@ -73,7 +103,7 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	EIKLimbType LimbType;
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	TArray<USceneComponent*> ArmTargets;
+	TArray<FIKProbe> IKProbes;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	FVector IKTargetFinal;
@@ -82,34 +112,41 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	float IKTargetTransitionDuration;
-	float IKTargetTransitionTimer;
+	float m_IKTargetTransitionTimer;
+
+
+	FQuat m_IKFrameRotation;
+	float m_IKUpperArmAngle;
+	float m_IKLowerArmAngle;
 
 public:	
 	// Sets default values for this actor's properties
 	AIKArm();
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	bool DEBUG_SHOW_ANGLE;
+	bool SHOW_DEBUG_INFO;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	int GaitStepIndex;
 
-	FVector MovementDelta;
+
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	bool TargetReachable;
+	FVector m_bMovementDelta;
+	bool m_bNeedNewTarget;
 
-	/* Calculated using the IKRoot as a base, looking at IKTarget with IKPin pointing up.
+	/* Calculated using the IKRoot as a base, looking at IKTarget.
+	* The Up vector is interpolated between the 2 IKPins, based on how far out/in the target is.
 	*/
-	FMatrix GetIKFrameRotationMatrix();
+	FMatrix GetIKFrameRotationMatrix(FVector IKTarget);
 
-	void SolveIKAndSetArmRotation();
+	bool AttemptSolveIK();
 	
-	bool IsIKTargetUnderNeath();
 	bool IsLimbColliding();
+	bool DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, float LowerArmAngle);
 
 	/** Find the angle opposite side 'a' in the triangle given by the lengths a, b and c
 	* This doesn't check for a valid triangle!!
@@ -121,13 +158,16 @@ protected:
 
 	void DebugDrawArm();
 	void MarkSpot(FVector Point, FColor Colour);
+	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	void ReceiveGaitInput(FVector MovementDelta);
+
 	void SetIKTarget(FVector NewTarget);
-	void PickNewIkTarget(FVector DirectionModifier = FVector(0,0,0));
+	void ProbeForIKTarget(FVector DirectionModifier = FVector(0,0,0));
 
 	FVector GetIKTargetFinal() { return IKTargetFinal; }
 
