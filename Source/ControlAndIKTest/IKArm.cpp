@@ -24,12 +24,20 @@ AIKArm::AIKArm()
 	LowerArm->SetupAttachment(UpperArm);
 	
 
+	ProbeBase = CreateDefaultSubobject<USceneComponent>(TEXT("ProbeBase"));
+	ProbeBase->SetupAttachment(RootComponent);
 	HighTarget = CreateDefaultSubobject<USceneComponent>(TEXT("HighTarget"));
-	HighTarget->SetupAttachment(RootComponent);
+	HighTarget->SetupAttachment(RootComponent);	
+	MidTarget = CreateDefaultSubobject<USceneComponent>(TEXT("MidTarget"));
+	MidTarget->SetupAttachment(RootComponent);
 	GroundTarget = CreateDefaultSubobject<USceneComponent>(TEXT("GroundTarget"));
 	GroundTarget->SetupAttachment(RootComponent);
 	LowTarget = CreateDefaultSubobject<USceneComponent>(TEXT("LowTarget"));
 	LowTarget->SetupAttachment(RootComponent);
+	OffAxisTargetA = CreateDefaultSubobject<USceneComponent>(TEXT("OffAxisTargetA"));
+	OffAxisTargetA->SetupAttachment(RootComponent);
+	OffAxisTargetB = CreateDefaultSubobject<USceneComponent>(TEXT("OffAxisTargetB"));
+	OffAxisTargetB->SetupAttachment(RootComponent);
 	UnderTarget = CreateDefaultSubobject<USceneComponent>(TEXT("UnderTarget"));
 	UnderTarget->SetupAttachment(RootComponent);
 
@@ -45,11 +53,16 @@ void AIKArm::BeginPlay()
 	Super::BeginPlay();
 	LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
 	
-	IKProbes.Add(FIKProbe(IKRoot, HighTarget));
-	IKProbes.Add(FIKProbe(IKRoot, GroundTarget));
-	IKProbes.Add(FIKProbe(HighTarget, LowTarget));
+	IKProbes.Add(FIKProbe(ProbeBase, HighTarget));
+	IKProbes.Add(FIKProbe(ProbeBase, GroundTarget));
+	//IKProbes.Add(FIKProbe(MidTarget, GroundTarget));
+	IKProbes.Add(FIKProbe(MidTarget, LowTarget));
+	//IKProbes.Add(FIKProbe(GroundTarget, LowTarget));
+
+	IKProbes.Add(FIKProbe(MidTarget, UnderTarget));
 	IKProbes.Add(FIKProbe(GroundTarget, UnderTarget));
-	IKProbes.Add(FIKProbe(LowTarget, UnderTarget));
+	IKProbes.Add(FIKProbe(GroundTarget, OffAxisTargetA));
+	//IKProbes.Add(FIKProbe(GroundTarget, OffAxisTargetB));
 }
 
 
@@ -71,7 +84,7 @@ void AIKArm::Tick(float DeltaTime)
 	}
 	if (m_bNeedNewTarget)
 	{
-		ProbeForIKTarget();
+		//ProbeForIKTarget();
 	}
 
 
@@ -105,7 +118,7 @@ void AIKArm::SmoothUpdateIKTarget()
 	//}
 	//else
 	//{
-	//	IKTargetIntermediate = IKTargetFinal;
+	//	IKTargetIntermediate = IKTargetFinal+;
 	//}
 }
 
@@ -135,10 +148,25 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			SetIKTarget(Hit.ImpactPoint);
 			if (AttemptSolveIK())
 			{
+				if (SHOW_DEBUG_INFO)
+				{
+					MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Green, 2);
+					MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
+				}
+
 				m_bNeedNewTarget = false;
 				return;
 			}
+			else if (SHOW_DEBUG_INFO)
+			{
+				MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Red, 2);
+				MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
+			}
 
+		}
+		else if (SHOW_DEBUG_INFO)
+		{
+			MarkLine(IKProbe.GetStart(), IKProbe.GetModifiedRayEnd(DirectionModifier), FColor::Orange, 10);
 		}
 	}
 
@@ -188,6 +216,7 @@ bool AIKArm::AttemptSolveIK()
 		float FinalUpperArmAngle = FindAngleA(LowerArmLength, FinalDistance, UpperArmLength);
 		float FinalLowerArmAngle = 180 + FindAngleA(FinalDistance, LowerArmLength, UpperArmLength);
 		
+		// Test 3: Does the solution cause legs to collide?
 		if (DoesThisSolutionCollide(IKRoot->GetComponentQuat().Inverse() * FinalFrameRotation, FinalUpperArmAngle, FinalLowerArmAngle))
 		{
 

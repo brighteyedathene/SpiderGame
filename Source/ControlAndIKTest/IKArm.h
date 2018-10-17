@@ -39,8 +39,9 @@ struct FIKProbe
 	*/
 	FVector GetModifiedRayEnd(FVector Modifier)
 	{
-		FVector Direction = (End->GetComponentLocation() + Modifier - Start->GetComponentLocation()).GetSafeNormal();
-		return Start->GetComponentLocation() + Direction * Length;
+		//FVector Direction = (End->GetComponentLocation() + Modifier - Start->GetComponentLocation()).GetSafeNormal();
+		//return Start->GetComponentLocation() + Direction * Length;
+		return End->GetComponentLocation() + Modifier;
 	};
 };
 
@@ -67,13 +68,25 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	USceneComponent* LowerArm;
 
 	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* ProbeBase;
+
+	UPROPERTY(EditAnywhere, Category = IK)
 	USceneComponent* HighTarget;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* MidTarget;
+	
+	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* LowTarget;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	USceneComponent* GroundTarget;	
 	
 	UPROPERTY(EditAnywhere, Category = IK)
-	USceneComponent* LowTarget;
+	USceneComponent* OffAxisTargetA;
+
+	UPROPERTY(EditAnywhere, Category = IK)
+	USceneComponent* OffAxisTargetB;
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	USceneComponent* UnderTarget;
