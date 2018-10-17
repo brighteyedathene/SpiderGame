@@ -129,23 +129,6 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 			AddInputVector(ClingVector * DeltaTime);
 			AddInputVector(ClimbVector * DeltaTime);
 
-			if (ClingVector.Size() > ClimbVector.Size())
-				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Orange, FString::Printf(TEXT("cling = %f"), ClingVector.Size()));
-			else
-				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, FString::Printf(TEXT("climb = %f"), ClimbVector.Size()));
-
-			
-
-			MarkLine(UpdatedComponent->GetComponentLocation() + UpdatedComponent->GetUpVector() * 100,
-				UpdatedComponent->GetComponentLocation() + (UpdatedComponent->GetUpVector() * 100) + (ClingVector * DeltaTime * 300),
-				FColor::Magenta, 2
-			);
-
-			MarkLine(UpdatedComponent->GetComponentLocation() + UpdatedComponent->GetUpVector() * 100,
-				UpdatedComponent->GetComponentLocation() + (UpdatedComponent->GetUpVector() * 100) + (ClimbVector * DeltaTime * 300),
-				FColor::Cyan, 2
-			);
-
 
 
 		}
@@ -345,14 +328,8 @@ FVector UCrawlerMovement::GetClingVector(const FVector& EndLocation, const FVect
 	FVector Direction = TargetLocation - UpdatedComponent->GetComponentLocation();
 	const float Distance = Direction.Size();
 
-	float Force = fmaxf(0, Distance - IdealDistanceThreshold) / IdealDistanceTolerance; // A
-	//float Force = (Distance - IdealDistanceThreshold > 0) ? Distance / IdealDistanceTolerance : 0; // B
+	float Force = fmaxf(0, Distance - IdealDistanceThreshold) / IdealDistanceTolerance;
 	Force *= Force;
-
-	//if(Force > 0)
-	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, FString::Printf(TEXT("distance = %f"), Distance));
-	//else
-	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Orange, FString::Printf(TEXT("distance = %f"), Distance));
 
 	return Direction.GetSafeNormal() * Force * ClingMultiplier;
 }
@@ -360,6 +337,7 @@ FVector UCrawlerMovement::GetClingVector(const FVector& EndLocation, const FVect
 
 FVector UCrawlerMovement::GetClimbVector(const FVector& Normal, float ClimbFactor)
 {
+	// The climb vector should be proportional to the movement speed
 	return Normal * ClimbFactor * ClimbMultiplier * (Velocity.Size() / MaxSpeedOnSurface);
 }
 
