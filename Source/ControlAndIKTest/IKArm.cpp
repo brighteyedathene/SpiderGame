@@ -53,13 +53,13 @@ void AIKArm::BeginPlay()
 	Super::BeginPlay();
 	LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
 	
-	IKProbes.Add(FIKProbe(IKRoot, HighTarget));
+	IKProbes.Add(FIKProbe(ProbeBase, HighTarget));
 	IKProbes.Add(FIKProbe(ProbeBase, GroundTarget));
 	//IKProbes.Add(FIKProbe(MidTarget, GroundTarget));
 	IKProbes.Add(FIKProbe(MidTarget, LowTarget));
 	//IKProbes.Add(FIKProbe(GroundTarget, LowTarget));
 
-	//IKProbes.Add(FIKProbe(MidTarget, UnderTarget));
+	IKProbes.Add(FIKProbe(MidTarget, UnderTarget));
 	IKProbes.Add(FIKProbe(GroundTarget, UnderTarget));
 	IKProbes.Add(FIKProbe(GroundTarget, OffAxisTargetA));
 	//IKProbes.Add(FIKProbe(GroundTarget, OffAxisTargetB));
@@ -118,7 +118,7 @@ void AIKArm::SmoothUpdateIKTarget()
 	//}
 	//else
 	//{
-	//	IKTargetIntermediate = IKTargetFinal;
+	//	IKTargetIntermediate = IKTargetFinal+;
 	//}
 }
 
@@ -151,7 +151,7 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 				if (SHOW_DEBUG_INFO)
 				{
 					MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Green, 2);
-					MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 2);
+					MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
 				}
 
 				m_bNeedNewTarget = false;
@@ -160,13 +160,13 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			else if (SHOW_DEBUG_INFO)
 			{
 				MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Red, 2);
-				MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 2);
+				MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
 			}
 
 		}
 		else if (SHOW_DEBUG_INFO)
 		{
-			MarkLine(IKProbe.GetStart(), IKProbe.GetModifiedRayEnd(DirectionModifier), FColor::Orange, 2);
+			MarkLine(IKProbe.GetStart(), IKProbe.GetModifiedRayEnd(DirectionModifier), FColor::Orange, 10);
 		}
 	}
 
