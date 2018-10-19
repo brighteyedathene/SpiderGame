@@ -244,20 +244,11 @@ void AWallCrawler::FlushInput()
 
 void AWallCrawler::JumpPressed()
 {
-	//if (AirTimer == 0)
-	//{
-	//	CrawlerState = ECrawlerState::Jumping;
-	//	CrawlerMovement->SetFalling(true);
-	//	JumpDirection = (RootComponent->GetUpVector() + CrawlerMovement->GetVelocity().GetSafeNormal()).GetClampedToMaxSize(1.f)//	
-	//}
+	CrawlerMovement->MaybeStartJump();
 }
 void AWallCrawler::JumpReleased()
 {
-	//if (AirTimer > MinJumpTime)
-	//{
-	//	CrawlerState = ECrawlerState::Falling;
-	//	CrawlerMovement->SetFalling(true);
-	//}
+	CrawlerMovement->MaybeEndJump();
 }
 void AWallCrawler::DropPressed()
 {

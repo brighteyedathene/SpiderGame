@@ -98,6 +98,7 @@ void AIKArm::Tick(float DeltaTime)
 	{
 		//MarkSpot(IKTargetIntermediate, FColor::White);
 		//MarkSpot(IKTargetFinal, FColor::Red);
+		DebugDrawProbes();
 	}
 }
 
@@ -150,8 +151,8 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			{
 				if (SHOW_DEBUG_INFO)
 				{
-					MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Green, 2);
-					MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
+					//MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Green, 2);
+					//MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
 				}
 
 				m_bNeedNewTarget = false;
@@ -159,14 +160,14 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			}
 			else if (SHOW_DEBUG_INFO)
 			{
-				MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Red, 2);
-				MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
+				//MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Red, 2);
+				//MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
 			}
 
 		}
 		else if (SHOW_DEBUG_INFO)
 		{
-			MarkLine(IKProbe.GetStart(), IKProbe.GetModifiedRayEnd(DirectionModifier), FColor::Orange, 10);
+			//MarkLine(IKProbe.GetStart(), IKProbe.GetModifiedRayEnd(DirectionModifier), FColor::Orange, 10);
 		}
 	}
 
@@ -430,6 +431,23 @@ void AIKArm::DebugDrawArm()
 
 		
 }
+
+void AIKArm::DebugDrawProbes()
+{
+	uint8 delta = 255 / IKProbes.Num();
+	uint8 current = 0;
+	for (auto IKProbe : IKProbes)
+	{
+		DrawDebugLine(
+			GetWorld(),
+			IKProbe.GetStart(),
+			IKProbe.GetModifiedRayEnd(FVector(0,0,0)),
+			FColor(current,current, 255 - current, 1), false, -1, 0, 6.f
+		);
+		current += delta;
+	}
+}
+
 
 void AIKArm::MarkSpot(FVector Point, FColor Colour)
 {

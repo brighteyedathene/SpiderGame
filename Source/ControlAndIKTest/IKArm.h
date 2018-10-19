@@ -170,6 +170,7 @@ protected:
 	void SmoothUpdateIKTarget();
 
 	void DebugDrawArm();
+	void DebugDrawProbes();
 	void MarkSpot(FVector Point, FColor Colour);
 	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 
