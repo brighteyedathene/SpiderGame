@@ -103,10 +103,8 @@ void AWallCrawler::Tick(float DeltaTime)
 	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
 	MovementDirection.Normalize();
 
-
-
-
-	CrawlerMovement->SetCameraForward(CameraBoom->GetForwardVector());
+	// TODO change this so that camera movement isn't tied to rotation speed in the movement component!
+	CrawlerMovement->SetCameraForward(CameraBoom->GetForwardVector()); 
 	AddMovementInput(MovementDirection, MovementIntensity);
 
 	if (CrawlerMovement->IsCrawling())
@@ -114,95 +112,10 @@ void AWallCrawler::Tick(float DeltaTime)
 		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
 	}
 
-
-	//   ////////////////////////
-	//    PURGE BELOW THIS LINE
-	//   ////////////////////////
-	// Handle the crawling behaviour
-
-	/*
-
-
-
-	switch (CrawlerState)
-	{
-
-	case ECrawlerState::Falling:
-
-		AirTimer += GetWorld()->GetDeltaSeconds();
-
-		// try to cling
-		{
-			FVector AverageLocation, AverageNormal;
-			float SuggestedClimbFactor;
-			int HitCount;
-			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
-			{
-				SetLatchPoint(AverageLocation, AverageNormal);
-				CrawlerState = ECrawlerState::Crawling;
-				AirTimer = 0;
-				CrawlerMovement->SetFalling(false);
-			}
-		}
-		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
-
-		// else do nothing (continue to fall)
-		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
-	
-		
-		break;
-
-	case ECrawlerState::Jumping:
-
-		AirTimer += GetWorld()->GetDeltaSeconds();
-
-		// Start falling...
-		if (AirTimer > MaxJumpTime)
-		{
-			CrawlerState = ECrawlerState::Falling;
-		}
-		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
-
-
-
-		// ... or continue to ascend
-		//AddMovementInput(FVector(0, 0, 1), JumpForce);
-		RootComponent->AddRelativeLocation(JumpDirection * JumpForce * (1 - AirTimer/MaxJumpTime) * GetWorld()->GetDeltaSeconds(), true);
-		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
-
-		break;
-
-	case ECrawlerState::Crawling:
-		{
-			FVector AverageLocation, AverageNormal;
-			float SuggestedClimbFactor;
-			int HitCount;
-			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, MovementDirection, 5))
-			{
-				SetLatchPoint(AverageLocation, AverageNormal);
-			}
-
-			ClingToPoint(LatchPoint, LatchNormal);
-
-			AddMovementInput(RootComponent->GetUpVector(), SuggestedClimbFactor * MovementSpeed * GetWorld()->GetDeltaSeconds());
-		}
-		AddMovementInput(MovementDirection, MovementIntensity * MovementSpeed * GetWorld()->GetDeltaSeconds());
-
-		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
-		
-	}
-
-
-
-	*/
-
 	// Clear all Inputs 
 	FlushInput();
 
 }
-
-
-
 
 
 void AWallCrawler::CollectYawInput(float Value)
@@ -244,20 +157,11 @@ void AWallCrawler::FlushInput()
 
 void AWallCrawler::JumpPressed()
 {
-	//if (AirTimer == 0)
-	//{
-	//	CrawlerState = ECrawlerState::Jumping;
-	//	CrawlerMovement->SetFalling(true);
-	//	JumpDirection = (RootComponent->GetUpVector() + CrawlerMovement->GetVelocity().GetSafeNormal()).GetClampedToMaxSize(1.f)//	
-	//}
+	CrawlerMovement->MaybeStartJump();
 }
 void AWallCrawler::JumpReleased()
 {
-	//if (AirTimer > MinJumpTime)
-	//{
-	//	CrawlerState = ECrawlerState::Falling;
-	//	CrawlerMovement->SetFalling(true);
-	//}
+	CrawlerMovement->MaybeEndJump();
 }
 void AWallCrawler::DropPressed()
 {

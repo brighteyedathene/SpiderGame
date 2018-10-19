@@ -30,14 +30,14 @@ class CONTROLANDIKTEST_API UCrawlerMovement : public UPawnMovementComponent
 
 	// UActorComponent interface
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	
+	//virtual void BeginPlay() override;
+
 	// UMovementComponent interface
-	virtual float GetMaxSpeed() const override { return MaxSpeedOnSurface; }
 	virtual bool ResolvePenetrationImpl(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation) override;
 
 
 public:
-	/** Maximum velocity magnitude allowed for the controlled Pawn. */
+	/** Maximum velocity magnitude allowed for the controlled Pawn on a surface. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float MaxSpeedOnSurface;
 
@@ -48,6 +48,18 @@ public:
 	/** Deceleration applied when there is no input (rate of change of velocity) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float Deceleration;
+	
+	/**
+	* Setting affecting extra force applied when changing direction, making turns have less drift and become more responsive.
+	* Velocity magnitude is not allowed to increase, that only happens due to normal acceleration. It may decrease with large direction changes.
+	* Larger values apply extra force to reach the target direction more quickly, while a zero value disables any extra turn force.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement, meta = (ClampMin = "0", UIMin = "0"))
+	float TurningBoost;
+	
+	/** How fast will the crawler correct its orientation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
+	float SurfaceRotationAlpha;
 
 	/** Lenmgth of surface feelers */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
@@ -64,6 +76,11 @@ public:
 	/** How close is good enough to stop clinging */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float IdealDistanceThreshold;
+	
+	/** How far until the grip is broken */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
+	float GripLossDistance;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float ClingMultiplier;
@@ -71,46 +88,43 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float ClimbMultiplier;
 
-	/**
-	* Setting affecting extra force applied when changing direction, making turns have less drift and become more responsive.
-	* Velocity magnitude is not allowed to increase, that only happens due to normal acceleration. It may decrease with large direction changes.
-	* Larger values apply extra force to reach the target direction more quickly, while a zero value disables any extra turn force.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement, meta = (ClampMin = "0", UIMin = "0"))
-	float TurningBoost;
-
-	/** How fast will the crawler correct its orientation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
-	float SurfaceRotationAlpha;
 
 
-	/** Absolute maximum velocity magnitude allowed for the controlled Pawn while falling */
+
+	/** Maximum horizontal velocity magnitude for the Pawn to propel itself in the air. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
+	float MaxSpeedInAir;
+
+	/** Absolute maximum velocity magnitude allowed for the Pawn while falling */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
 	float TerminalVelocity;
 
 	/** Acceleration applied by input (rate of change of velocity) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
 	float AerialAcceleration;
 
 	/** Deceleration applied when there is no input (rate of change of velocity) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
 	float AerialDeceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
-	float MaxJumpTime;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
-	float MinJumpTime;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
-	float JumpForce;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
 	float AerialRotationAlpha;
 
-	/** Acceleration applied by gravity (rate of change of velocity) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
-	float GravityAcceleration;
+	/** Max height of a jump */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
+	float MaxJumpHeight;
+
+	/** Minimum height of a jump */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
+	float MinJumpHeight;
+
+	/** Time taken to reach max jump height */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
+	float MaxJumpTime;
+	
+	/** Time taken to fall from max jump height on level ground */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
+	float MaxFallTime;
 
 	ECrawlerState CrawlerState;
 	void SetFalling() { CrawlerState = ECrawlerState::Falling; };
@@ -123,9 +137,6 @@ public:
 	bool IsCrawling() { return CrawlerState == ECrawlerState::Crawling; };
 
 	FVector GetVelocity() { return Velocity; };
-
-	void MaybeStartJump();
-	void MaybeEndJump();
 
 	
 	/** Placeholder until camera movement is rebuilt */
@@ -140,6 +151,12 @@ protected:
 	/** Update Velocity based on input without gravity. */
 	virtual void ApplyControlInputToVelocity(float DeltaTime);
 
+	void MoveActor(float DeltaTime);
+
+	float GetAcceleration();
+	float GetDeceleration();
+
+	float GetMaxSpeed();
 	bool IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const;
 
 
@@ -177,10 +194,6 @@ protected:
 		FVector MovementDirection,
 		int RaysPerAxis);
 
-
-	/** Some helpful maths functions */
-	FQuat FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector);
-
 	/** Set to true when a position correction is applied. Used to avoid recalculating velocity when this occurs. */
 	UPROPERTY(Transient)
 	uint32 bPositionCorrected : 1;
@@ -191,13 +204,30 @@ protected:
 	//UPROPERTY(EditAnywhere, Category = WallCrawling)
 	ECollisionChannel TraceChannel;
 
+
+
+#pragma region JumpStuff
+public:
+	void MaybeStartJump();
+	void MaybeEndJump();
+
+protected:
+	bool bJumpInProgress;
+	bool bStillWantToJump;
+
+	void AddJumpVelocity();
+
+	float GetMinJumpTime();
+	float GetJumpingGravity();
+	float GetFallingGravity();
+
 	/** How long since the crawler touched land */
 	float AirTimer;
 
 	/** Initial direction of the current jump */
 	FVector JumpDirection;
 
-
+#pragma endregion JumpStuff
 
 	// Delete these later
 	void MarkSpot(FVector Point, FColor Colour);

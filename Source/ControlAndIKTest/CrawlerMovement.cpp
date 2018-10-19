@@ -17,16 +17,23 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 
 	SurfaceRotationAlpha = 0.2;
 	SurfaceRayLength = 180.f;
-	IdealDistanceToSurface = 110.f;
-	IdealDistanceTolerance = 100.f;
+	IdealDistanceToSurface = 80.f;
+	IdealDistanceTolerance = 80.f;
 	IdealDistanceThreshold = 20.f;
+	GripLossDistance = 180.f;
 	ClingMultiplier = 1400;
 	ClimbMultiplier = 200;
 
-
+	MaxSpeedInAir = 1500.f;
 	TerminalVelocity = 9000.f;
-	GravityAcceleration = 980.f;
+	AerialAcceleration = 3000.f;
+	AerialDeceleration = 6000.f;
+	AerialRotationAlpha = 0.1;
 	
+	MaxJumpHeight = 400.f;
+	MinJumpHeight = 40.f;
+	MaxJumpTime = 0.5;
+	MaxFallTime = 0.4;
 
 
 	
@@ -39,6 +46,13 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 
 	ResetMoveState();
 }
+
+//TODO Calculate gravity and min jump time here
+//void UCrawlerMovement::BeginPlay()
+//{
+//	Super::BeginPlay()
+//}
+
 
 void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
@@ -60,96 +74,126 @@ void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 		// apply input for local players
 		if (Controller->IsLocalPlayerController() == true)
 		{
-			
+			// Apply controller-based changes to velocity and state
 			UpdateCrawlerMovementState(DeltaTime);
 
 		}
-		
-		bPositionCorrected = false;
 
-		// Move actor
-		FVector Delta = Velocity * DeltaTime;
-
-		if (!Delta.IsNearlyZero(1e-6f))
-		{
-			const FVector OldLocation = UpdatedComponent->GetComponentLocation();
-			const FQuat Rotation = UpdatedComponent->GetComponentQuat();
-
-			FHitResult Hit(1.f);
-			SafeMoveUpdatedComponent(Delta, Rotation, true, Hit);
-
-			if (Hit.IsValidBlockingHit())
-			{
-				HandleImpact(Hit, DeltaTime, Delta);
-				// Try to slide the remaining distance along the surface.
-				SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
-			}
-
-			// Update velocity
-			// We don't want position changes to vastly reverse our direction (which can happen due to penetration fixups etc)
-			if (!bPositionCorrected)
-			{
-				const FVector NewLocation = UpdatedComponent->GetComponentLocation();
-				Velocity = ((NewLocation - OldLocation) / DeltaTime);
-			}
-		}
-
-		// Finalize
-		UpdateComponentVelocity();
-
+		MoveActor(DeltaTime);
 	}
 	
 }
 
+void UCrawlerMovement::MoveActor(float DeltaTime)
+{
+	bPositionCorrected = false;
+
+	FVector Delta = Velocity * DeltaTime;
+	if (!Delta.IsNearlyZero(1e-6f))
+	{
+		const FVector OldLocation = UpdatedComponent->GetComponentLocation();
+		const FQuat Rotation = UpdatedComponent->GetComponentQuat();
+
+		FHitResult Hit(1.f);
+		SafeMoveUpdatedComponent(Delta, Rotation, true, Hit);
+
+		if (Hit.IsValidBlockingHit())
+		{
+			HandleImpact(Hit, DeltaTime, Delta);
+			// Try to slide the remaining distance along the surface.
+			SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
+		}
+
+		// Update velocity
+		// We don't want position changes to vastly reverse our direction (which can happen due to penetration fixups etc)
+		if (!bPositionCorrected)
+		{
+			const FVector NewLocation = UpdatedComponent->GetComponentLocation();
+			Velocity = ((NewLocation - OldLocation) / DeltaTime);
+		}
+	}
+
+	// Finalize
+	UpdateComponentVelocity();
+}
 
 void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 {
 	FVector PendingInput = GetPendingInputVector();
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White , FString::Printf(TEXT("Input strength = %f"), PendingInput.Size()));
-	if (IsLookingToCling())
+
+
+	if (IsCrawling() && bJumpInProgress)
 	{
-		// Look for a new point to cling to and set state to crawling if necessary
-		FVector AverageLocation, AverageNormal;
-		float SuggestedClimbFactor = 0;
-		int HitCount;
-		if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, PendingInput.GetSafeNormal(), 5))
+		AddJumpVelocity();
+		SetJumping();
+	}
+
+	switch (CrawlerState)
+	{
+	case ECrawlerState::Crawling:
+		
 		{
-			SetLatchPoint(AverageLocation, AverageNormal);
-			if (!IsCrawling())
+			// Scoped to avoid redefinition of the following variables
+			FVector AverageLocation, AverageNormal;
+			float SuggestedClimbFactor = 0;
+			int HitCount;
+			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, PendingInput.GetSafeNormal(), 5))
 			{
+				SetLatchPoint(AverageLocation, AverageNormal);
+			}
+			FVector ClingVector = GetClingVector(LatchPoint, LatchNormal);
+			FVector ClimbVector = GetClimbVector(LatchNormal, SuggestedClimbFactor);
+
+			AddInputVector(ClingVector * DeltaTime);
+			AddInputVector(ClimbVector * DeltaTime);
+		}
+		RotateTowardsNormal(LatchNormal, SurfaceRotationAlpha);
+		ApplyControlInputToVelocity(DeltaTime);
+
+		if (FVector::Distance(LatchPoint, UpdatedComponent->GetComponentLocation()) > GripLossDistance)
+		{
+			SetFalling();
+		}
+
+		break;
+
+	case ECrawlerState::Jumping:
+
+		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
+		ApplyControlInputToVelocity(DeltaTime);
+
+
+		if (AirTimer > MaxJumpTime || (!bStillWantToJump && AirTimer > GetMinJumpTime()))
+		{
+			SetFalling();
+			bJumpInProgress = false;
+		}
+
+		AirTimer += DeltaTime;
+
+		break;
+
+	case ECrawlerState::Falling:
+
+		{
+			// Scoped to avoid redefinition of the following variables
+			FVector AverageLocation, AverageNormal;
+			float SuggestedClimbFactor = 0;
+			int HitCount;
+			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, PendingInput.GetSafeNormal(), 5))
+			{
+				SetLatchPoint(AverageLocation, AverageNormal);
 				SetCrawling();
 			}
 		}
-		if (IsCrawling())
-		{
-			// cling to the latch point, old or new!
-			FVector ClingVector = GetClingVector(LatchPoint, LatchNormal);
-			FVector ClimbVector = GetClimbVector(LatchNormal, SuggestedClimbFactor);
-			
-			AddInputVector(ClingVector * DeltaTime);
-			AddInputVector(ClimbVector * DeltaTime);
-
-
-
-		}
-	}
-
-
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("Input strength = %f"), GetPendingInputVector().Size()));
-
-
-	if (IsJumping())
-	{
-		//ContinueJump();
-	}
-
-	if (IsCrawling())
-	{
+		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
 		ApplyControlInputToVelocity(DeltaTime);
-		RotateTowardsNormal(LatchNormal, SurfaceRotationAlpha);
+
+		AirTimer += DeltaTime;
+
+		break;
+
 	}
-
-
 
 
 }
@@ -159,17 +203,10 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 {
 	const FVector ControlAcceleration = GetPendingInputVector().GetClampedToMaxSize(1.f);
 
-
-	MarkLine(UpdatedComponent->GetComponentLocation() + UpdatedComponent->GetUpVector() * 100,
-		UpdatedComponent->GetComponentLocation() + (UpdatedComponent->GetUpVector() * 100) + (ControlAcceleration * DeltaTime * 300),
-		FColor::Yellow, 0
-	);
-
-
 	const float AnalogInputModifier = (ControlAcceleration.SizeSquared() > 0.f ? ControlAcceleration.Size() : 0.f);
 	const float MaxPawnSpeed = GetMaxSpeed() * AnalogInputModifier;
 
-	//FVector WorkingVelocity = (IsFalling()) ? FVector(Velocity.X, Velocity.Y, 0.f) : Velocity;
+	//FVector WorkingVelocity = (!IsCrawling()) ? FVector(Velocity.X, Velocity.Y, 0.f) : Velocity;
 	FVector WorkingVelocity = Velocity;
 
 	const bool bExceedingMaxSpeed = IsThisExceedingMaxSpeed(MaxPawnSpeed, WorkingVelocity);
@@ -190,7 +227,7 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 		if (WorkingVelocity.SizeSquared() > 0.f)
 		{
 			const FVector OldVelocity = WorkingVelocity;
-			const float VelSize = FMath::Max(WorkingVelocity.Size() - FMath::Abs(Deceleration) * DeltaTime, 0.f);
+			const float VelSize = FMath::Max(WorkingVelocity.Size() - FMath::Abs(GetDeceleration()) * DeltaTime, 0.f);
 			WorkingVelocity = WorkingVelocity.GetSafeNormal() * VelSize;
 
 			// Don't allow braking to lower us below max speed if we started above it.
@@ -203,19 +240,73 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 
 	// Apply acceleration and clamp velocity magnitude.
 	const float NewMaxSpeed = (IsExceedingMaxSpeed(MaxPawnSpeed)) ? WorkingVelocity.Size() : MaxPawnSpeed;
-	WorkingVelocity += ControlAcceleration * FMath::Abs(Acceleration) * DeltaTime;
+	WorkingVelocity += ControlAcceleration * FMath::Abs(GetAcceleration()) * DeltaTime;
 	WorkingVelocity = WorkingVelocity.GetClampedToMaxSize(NewMaxSpeed);
 
-	//// Apply gravity
-	//if (IsFalling())
-	//{
-	//	WorkingVelocity.Z = fmaxf(Velocity.Z - GravityAcceleration * DeltaTime, -TerminalVelocity);
-	//}
+	// Apply jump force
+	if (IsJumping())
+	{
+		WorkingVelocity.Z = fmaxf(Velocity.Z - GetJumpingGravity() * DeltaTime, -TerminalVelocity);
+	}
+
+	// Apply gravity
+	if (IsFalling())
+	{
+		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * DeltaTime, -TerminalVelocity);
+	}
 
 	Velocity = WorkingVelocity;
 	ConsumeInputVector();
 }
 
+
+void UCrawlerMovement::MaybeStartJump()
+{
+	if (!IsJumping() && !IsFalling())
+	{
+		bJumpInProgress = true;
+		bStillWantToJump = true;
+	}
+}
+
+void UCrawlerMovement::MaybeEndJump()
+{
+	bStillWantToJump = false;
+}
+
+void UCrawlerMovement::AddJumpVelocity()
+{
+	const float InitialJumpSpeed = 2 * MaxJumpHeight / MaxJumpTime;
+	Velocity += UpdatedComponent->GetUpVector() * InitialJumpSpeed;
+}
+float UCrawlerMovement::GetMinJumpTime()
+{
+	return FMath::Sqrt(2 * MinJumpHeight / GetJumpingGravity());
+}
+float UCrawlerMovement::GetJumpingGravity()
+{
+	return 2 * MaxJumpHeight / (MaxJumpTime * MaxJumpTime);
+}
+float UCrawlerMovement::GetFallingGravity()
+{
+	return 2 * MaxJumpHeight / (MaxFallTime * MaxFallTime);
+}
+
+float UCrawlerMovement::GetAcceleration()
+{
+	return (IsCrawling()) ? Acceleration : AerialAcceleration;
+}
+
+float UCrawlerMovement::GetDeceleration()
+{
+	return (IsCrawling()) ? Deceleration : AerialDeceleration;
+}
+
+
+float UCrawlerMovement::GetMaxSpeed()
+{
+	return IsCrawling() ? MaxSpeedOnSurface : MaxSpeedInAir;
+}
 
 bool UCrawlerMovement::IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const
 {
@@ -290,8 +381,6 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 						MaxClimb = fmaxf(MaxClimb, fabsf(MoveDotRay) - fabsf(UpDotRay));
 						//MaxClimb = fminf(1.f, MaxClimb + fabsf(MoveDotRay) - fabsf(UpDotRay));
 					}
-
-					DrawDebugLine(GetWorld(), O, Hit.ImpactPoint, FColor::Red, false, -1.f, 0, 1.f);
 				}
 			}
 		}
@@ -310,6 +399,13 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 	{
 		return false;
 	}
+}
+
+
+void UCrawlerMovement::SetLatchPoint(FVector Location, FVector Normal)
+{
+	LatchPoint = Location;
+	LatchNormal = Normal;
 }
 
 
@@ -348,11 +444,19 @@ FVector ProjectToPlane(const FVector& U, const FVector& N)
 	return U - ((FVector::DotProduct(U, N)) / N.SizeSquared()) * N;
 }
 
+FQuat FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector)
+{
+	const FVector XAxis = (LookAtPosition - EyePosition).GetSafeNormal();
+	const FVector YAxis = (UpVector ^ XAxis).GetSafeNormal();
+	const FVector ZAxis = XAxis ^ YAxis;
+
+	return FRotationMatrix::MakeFromXZ(XAxis, ZAxis).ToQuat();
+}
 void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 {
 	// We will calculate a forward vector based on the model rotation, the normal and the camera
 	//const FVector CamForward = CameraBoom->GetComponentRotation().Vector();
-	const FVector CamForward = CameraForward;  ///////////////////////////////////////////////// TODO CHANGE THIS when rebuilding camera ///////////
+	const FVector CamForward = CameraForward;  ///////////////////////////////////////////////// TODO CHANGE THIS when rebuilding camera /
 	const FVector ModelUp = UpdatedComponent->GetUpVector();
 	const FVector ModelForward = ProjectToPlane(CamForward, ModelUp).GetSafeNormal();
 
@@ -373,25 +477,6 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t);
 	UpdatedComponent->SetRelativeRotation(FinalQuat);
 }
-
-
-void UCrawlerMovement::SetLatchPoint(FVector Location, FVector Normal)
-{
-	LatchPoint = Location;
-	LatchNormal = Normal;
-}
-
-
-FQuat UCrawlerMovement::FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector)
-{
-	const FVector XAxis = (LookAtPosition - EyePosition).GetSafeNormal();
-	const FVector YAxis = (UpVector ^ XAxis).GetSafeNormal();
-	const FVector ZAxis = XAxis ^ YAxis;
-
-	return FRotationMatrix::MakeFromXZ(XAxis, ZAxis).ToQuat();
-}
-
-
 
 
 // Delte these later
