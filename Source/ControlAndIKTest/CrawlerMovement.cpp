@@ -274,18 +274,6 @@ void UCrawlerMovement::MaybeEndJump()
 	bStillWantToJump = false;
 }
 
-void UCrawlerMovement::SetJumpDirection(FVector ControlInput)
-{
-	JumpDirection = UpdatedComponent->GetUpVector() + ControlInput;
-}
-
-FVector UCrawlerMovement::GetCurrentJumpVector()
-{
-	//float ForceFactor = fmaxf(0, MaxJumpTime - AirTimer / MaxJumpTime);
-	//return JumpForce * ForceFactor * JumpDirection;
-	return FVector(0, 0, 1);
-}
-
 void UCrawlerMovement::AddJumpVelocity()
 {
 	const float InitialJumpSpeed = 2 * MaxJumpHeight / MaxJumpTime;
@@ -468,7 +456,7 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 {
 	// We will calculate a forward vector based on the model rotation, the normal and the camera
 	//const FVector CamForward = CameraBoom->GetComponentRotation().Vector();
-	const FVector CamForward = CameraForward;  ///////////////////////////////////////////////// TODO CHANGE THIS when rebuilding camera ///////////
+	const FVector CamForward = CameraForward;  ///////////////////////////////////////////////// TODO CHANGE THIS when rebuilding camera /
 	const FVector ModelUp = UpdatedComponent->GetUpVector();
 	const FVector ModelForward = ProjectToPlane(CamForward, ModelUp).GetSafeNormal();
 

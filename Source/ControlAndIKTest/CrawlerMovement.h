@@ -215,9 +215,6 @@ protected:
 	bool bJumpInProgress;
 	bool bStillWantToJump;
 
-	void SetJumpDirection(FVector ControlInput);
-	FVector GetCurrentJumpVector();
-
 	void AddJumpVelocity();
 
 	float GetMinJumpTime();
