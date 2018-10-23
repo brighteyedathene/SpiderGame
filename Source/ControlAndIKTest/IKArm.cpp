@@ -53,6 +53,8 @@ void AIKArm::BeginPlay()
 	Super::BeginPlay();
 	LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
 	
+	m_pTargetParent = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), RootComponent->GetComponentLocation(), RootComponent->GetComponentRotation());
+
 	IKProbes.Add(FIKProbe(ProbeBase, HighTarget));
 	IKProbes.Add(FIKProbe(ProbeBase, GroundTarget));
 	//IKProbes.Add(FIKProbe(MidTarget, GroundTarget));
@@ -70,6 +72,23 @@ void AIKArm::BeginPlay()
 void AIKArm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+
+	if (SHOW_DEBUG_INFO)
+	{
+		MarkSpot(m_pTargetParent->GetActorLocation(), FColor::Green);
+
+		if(m_pTargetParent)
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, m_pTargetParent->GetActorLocation().ToCompactString());
+
+		if (m_pTargetParent->GetParentActor())
+			MarkLine(IKTargetFinal, m_pTargetParent->GetParentActor()->GetActorLocation(), FColor::White, 0);
+	}
+
+	if (!m_bNeedNewTarget)
+	{
+		IKTargetFinal = m_pTargetParent->GetActorLocation();
+	}
 
 	SmoothUpdateIKTarget();
 
@@ -110,6 +129,9 @@ void AIKArm::SmoothUpdateIKTarget()
 	float t = 0.4;
 	IKTargetIntermediate = IKTargetIntermediate * (1 - t) + IKTargetFinal * t;
 
+	//MarkSpot(IKTargetFinal, FColor::Red);
+	//MarkSpot(m_pTargetParent->GetActorLocation(), FColor::Green);
+
 	//IKTargetTransitionTimer += GetWorld()->GetDeltaSeconds();
 	//if (IKTargetTransitionTimer < IKTargetTransitionDuration)
 	//{
@@ -137,6 +159,10 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 	CollisionParameters.bTraceComplex = true;
 	FHitResult Hit;
 
+	FAttachmentTransformRules AttachmentRules(FAttachmentTransformRules::KeepWorldTransform);
+	//FAttachmentTransformRules AttachmentRules(FAttachmentTransformRules::KeepRelativeTransform);
+	//FAttachmentTransformRules AttachmentRules(FAttachmentTransformRules::SnapToTargetIncludingScale);
+
 	for (auto IKProbe : IKProbes)
 	{
 		if (GetWorld()->LineTraceSingleByChannel(
@@ -149,8 +175,13 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			SetIKTarget(Hit.ImpactPoint);
 			if (AttemptSolveIK())
 			{
+
+				m_pTargetParent->SetActorLocationAndRotation(Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+				m_pTargetParent->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
+				
 				if (SHOW_DEBUG_INFO)
 				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
 					//MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Green, 2);
 					//MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
 				}
@@ -158,16 +189,7 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 				m_bNeedNewTarget = false;
 				return;
 			}
-			else if (SHOW_DEBUG_INFO)
-			{
-				//MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Red, 2);
-				//MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
-			}
 
-		}
-		else if (SHOW_DEBUG_INFO)
-		{
-			//MarkLine(IKProbe.GetStart(), IKProbe.GetModifiedRayEnd(DirectionModifier), FColor::Orange, 10);
 		}
 	}
 
@@ -370,8 +392,8 @@ bool AIKArm::DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, f
 		ECC_Visibility,
 		CollisionParameters))
 	{
-		if (SHOW_DEBUG_INFO)
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
+		//if (SHOW_DEBUG_INFO)
+		//	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
 
 		return true;
 	}
@@ -383,8 +405,8 @@ bool AIKArm::DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, f
 		ECC_Visibility,
 		CollisionParameters))
 	{
-		if (SHOW_DEBUG_INFO)
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, AActor::GetDebugName(Hit.Actor.Get()));
+		//if (SHOW_DEBUG_INFO)
+		//	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, AActor::GetDebugName(Hit.Actor.Get()));
 
 		return true;
 	}

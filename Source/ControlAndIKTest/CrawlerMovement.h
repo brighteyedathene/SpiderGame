@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PawnMovementComponent.h"
+
+#include "MobileTargetActor.h"
+
 #include "CrawlerMovement.generated.h"
 
 /**
@@ -30,7 +33,7 @@ class CONTROLANDIKTEST_API UCrawlerMovement : public UPawnMovementComponent
 
 	// UActorComponent interface
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	//virtual void BeginPlay() override;
+	virtual void BeginPlay() override;
 
 	// UMovementComponent interface
 	virtual bool ResolvePenetrationImpl(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation) override;
@@ -158,9 +161,17 @@ protected:
 
 	float GetMaxSpeed();
 	bool IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const;
+	
+	/** Set to true when a position correction is applied. Used to avoid recalculating velocity when this occurs. */
+	UPROPERTY(Transient)
+	uint32 bPositionCorrected : 1;
 
 
+#pragma region WallCrawlingStuff
 
+	/** This actor is to be attached to moving targets so the crawler can stick with them as they move */
+	AMobileTargetActor* MobileTargetActor;
+	//FTransform ParentOffset;
 
 	/** This point anchors the crawler to a surface.
 	* As long as there is a LatchPoint, the crawler will not begin to fall
@@ -194,16 +205,13 @@ protected:
 		FVector MovementDirection,
 		int RaysPerAxis);
 
-	/** Set to true when a position correction is applied. Used to avoid recalculating velocity when this occurs. */
-	UPROPERTY(Transient)
-	uint32 bPositionCorrected : 1;
-
 	/** Raycasting shit - somethign complains about making this a UPROPERTY */
 	//UPROPERTY(EditAnywhere, Category = WallCrawling)
 	FCollisionQueryParams CollisionParameters;
 	//UPROPERTY(EditAnywhere, Category = WallCrawling)
 	ECollisionChannel TraceChannel;
 
+#pragma endregion WallCrawlingStuff
 
 
 #pragma region JumpStuff
@@ -230,6 +238,6 @@ protected:
 #pragma endregion JumpStuff
 
 	// Delete these later
-	void MarkSpot(FVector Point, FColor Colour);
+	void MarkSpot(FVector Point, FColor Colour, float Duration = 1.f);
 	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 };

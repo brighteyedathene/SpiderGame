@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+
+#include "MobileTargetActor.h"
+
 #include "IKArm.generated.h"
 
 UENUM()
@@ -127,7 +130,13 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	float IKTargetTransitionDuration;
 	float m_IKTargetTransitionTimer;
 
+	/** Pointer to track moving IKTargets
+	* This gets attached to other actors so that movement is inherited 
+	*/
+	AMobileTargetActor* m_pTargetParent;
 
+
+	// The current IK solution
 	FQuat m_IKFrameRotation;
 	float m_IKUpperArmAngle;
 	float m_IKLowerArmAngle;

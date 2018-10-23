@@ -48,10 +48,12 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 }
 
 //TODO Calculate gravity and min jump time here
-//void UCrawlerMovement::BeginPlay()
-//{
-//	Super::BeginPlay()
-//}
+void UCrawlerMovement::BeginPlay()
+{
+	Super::BeginPlay();
+
+	MobileTargetActor = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+}
 
 
 void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -126,12 +128,37 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	{
 		AddJumpVelocity();
 		SetJumping();
+		//UpdatedComponent->GetOwner()->RemoveFromRoot();
 	}
 
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
-		
+
+		// Jankuily update the position and rotation in relation to the latch point
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, MobileTargetActor->GetActorLocation().ToCompactString());
+		{
+			FVector LatchPointDiff = MobileTargetActor->GetActorLocation() - LatchPoint;
+			FQuat LatchNormalDiff = FQuat::FindBetween(MobileTargetActor->GetActorRotation().Vector(), LatchNormal);
+
+			MarkSpot(LatchPoint, FColor::Red, 0);
+			MarkLine(LatchPoint, LatchPoint + LatchNormal * 50, FColor::Red, 0);
+
+			FVector OldLatchPoint = LatchPoint;
+			FVector OldLatchNormal = LatchNormal;
+
+			LatchPoint = MobileTargetActor->GetActorLocation();
+			LatchNormal = MobileTargetActor->GetActorRotation().Vector();
+
+			MarkSpot(LatchPoint, FColor::Green, 0);
+			MarkLine(LatchPoint, LatchPoint + LatchNormal * 50, FColor::Green, 0);
+
+			UpdatedComponent->AddRelativeRotation(LatchNormalDiff, true);
+			UpdatedComponent->AddRelativeLocation(LatchPointDiff, true);
+		}
+		// End janky update
+
+
 		{
 			// Scoped to avoid redefinition of the following variables
 			FVector AverageLocation, AverageNormal;
@@ -349,6 +376,9 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 	FVector NormalSum = FVector(0, 0, 0);
 	FVector LocationSum = FVector(0, 0, 0);
 	float MaxClimb = 0;
+	
+
+	float MinDistance = SurfaceRayLength + 10.f; // We need to attach the MovingTarget to the closest HitActor
 	FHitResult Hit;
 
 	// Probe for hits, accumulate normal and location sums, calculate climb value
@@ -381,6 +411,14 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 						MaxClimb = fmaxf(MaxClimb, fabsf(MoveDotRay) - fabsf(UpDotRay));
 						//MaxClimb = fminf(1.f, MaxClimb + fabsf(MoveDotRay) - fabsf(UpDotRay));
 					}
+
+					// Attach the MovingTargetActor to the closest Hit
+					if (Hit.Distance < MinDistance)
+					{
+						MinDistance = Hit.Distance;
+						MobileTargetActor->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
+						//UpdatedComponent->GetOwner()->AttachToActor(Hit.Actor.Get(), AttachmentRules);
+					}
 				}
 			}
 		}
@@ -406,6 +444,7 @@ void UCrawlerMovement::SetLatchPoint(FVector Location, FVector Normal)
 {
 	LatchPoint = Location;
 	LatchNormal = Normal;
+	MobileTargetActor->SetActorLocationAndRotation(Location, Normal.Rotation());
 }
 
 
@@ -480,8 +519,9 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 
 
 // Delte these later
-void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour)
+void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
+	bool IsPersistant = Duration > 0;
 	float length = 10.f;
 	for (int x = -1; x <= 1; x++)
 	{
@@ -489,7 +529,7 @@ void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, true, -1, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 1.f);
 			}
 		}
 	}
