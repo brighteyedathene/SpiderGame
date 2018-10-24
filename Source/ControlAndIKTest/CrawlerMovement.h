@@ -84,6 +84,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float GripLossDistance;
 
+	/** What fraction of movement will be preserved between this actor and any moving platform it stands on
+	* This shold be very close to 1
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement,
+		meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"))
+	float PiggybackStrength;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float ClingMultiplier;

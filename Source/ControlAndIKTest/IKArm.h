@@ -180,7 +180,7 @@ protected:
 
 	void DebugDrawArm();
 	void DebugDrawProbes();
-	void MarkSpot(FVector Point, FColor Colour);
+	void MarkSpot(FVector Point, FColor Colour, float Duration=1.f);
 	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 
 public:	

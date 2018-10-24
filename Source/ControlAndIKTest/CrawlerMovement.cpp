@@ -3,7 +3,7 @@
 #include "CrawlerMovement.h"
 
 #include "DrawDebugHelpers.h"
-
+#include "CoreGlobals.h"
 
 /* This already has a body apparently
 */
@@ -21,6 +21,7 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	IdealDistanceTolerance = 80.f;
 	IdealDistanceThreshold = 20.f;
 	GripLossDistance = 180.f;
+	PiggybackStrength = 0.99f;
 	ClingMultiplier = 1400;
 	ClimbMultiplier = 200;
 
@@ -78,9 +79,8 @@ void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 		{
 			// Apply controller-based changes to velocity and state
 			UpdateCrawlerMovementState(DeltaTime);
-
 		}
-
+		// Perform the movement and handle colliding/sliding
 		MoveActor(DeltaTime);
 	}
 	
@@ -128,36 +128,26 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	{
 		AddJumpVelocity();
 		SetJumping();
-		//UpdatedComponent->GetOwner()->RemoveFromRoot();
+		UpdatedComponent->GetOwner()->RemoveFromRoot();
+		FVector PiggybackVelocity = (MobileTargetActor->GetActorLocation() - LatchPoint) / GetWorld()->GetDeltaSeconds();
+		Velocity += PiggybackVelocity;
 	}
 
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
 
-		// Jankuily update the position and rotation in relation to the latch point
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, MobileTargetActor->GetActorLocation().ToCompactString());
+		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
 		{
 			FVector LatchPointDiff = MobileTargetActor->GetActorLocation() - LatchPoint;
 			FQuat LatchNormalDiff = FQuat::FindBetween(MobileTargetActor->GetActorRotation().Vector(), LatchNormal);
 
-			MarkSpot(LatchPoint, FColor::Red, 0);
-			MarkLine(LatchPoint, LatchPoint + LatchNormal * 50, FColor::Red, 0);
-
-			FVector OldLatchPoint = LatchPoint;
-			FVector OldLatchNormal = LatchNormal;
+			UpdatedComponent->AddRelativeRotation(LatchNormalDiff, true);
+			UpdatedComponent->AddRelativeLocation(LatchPointDiff * PiggybackStrength, true);
 
 			LatchPoint = MobileTargetActor->GetActorLocation();
 			LatchNormal = MobileTargetActor->GetActorRotation().Vector();
-
-			MarkSpot(LatchPoint, FColor::Green, 0);
-			MarkLine(LatchPoint, LatchPoint + LatchNormal * 50, FColor::Green, 0);
-
-			UpdatedComponent->AddRelativeRotation(LatchNormalDiff, true);
-			UpdatedComponent->AddRelativeLocation(LatchPointDiff, true);
 		}
-		// End janky update
-
 
 		{
 			// Scoped to avoid redefinition of the following variables

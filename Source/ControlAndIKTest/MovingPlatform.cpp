@@ -21,6 +21,12 @@ void AMovingPlatform::BeginPlay()
 	Index = 0;
 	PreviousIndex = 0;
 	ArrivalThresholdSquared = ArrivalThreshold * ArrivalThreshold;
+
+	Timer = 0;
+
+	if (TimeBetweenPoints == 0)
+		TimeBetweenPoints = 1;
+
 }
 
 // Called every frame
@@ -30,7 +36,10 @@ void AMovingPlatform::Tick(float DeltaTime)
 
 	if (bActive && TargetPoints.Num() > 0)
 	{
-		MoveTowardsNextPoint();
+		if (bUseFlatSpeed)
+			MoveTowardsNextPointFlatSpeed();
+		else
+			MoveTowardsNextPointSmooth();
 
 		if (FVector::DistSquared(RootComponent->GetComponentLocation(), TargetPoints[Index]->GetActorLocation()) < ArrivalThresholdSquared)
 		{
@@ -40,6 +49,9 @@ void AMovingPlatform::Tick(float DeltaTime)
 				Index--;
 			else
 				Index++;
+
+			// Reset timer
+			Timer = 0;
 
 			// Apply edge-case rules
 			if (Index >= TargetPoints.Num() || Index < 0)
@@ -64,10 +76,10 @@ void AMovingPlatform::Tick(float DeltaTime)
 	}
 }
 
-void AMovingPlatform::MoveTowardsNextPoint()
+void AMovingPlatform::MoveTowardsNextPointFlatSpeed()
 {
 	FVector Difference = TargetPoints[Index]->GetActorLocation() - RootComponent->GetComponentLocation();
-	FVector Delta = Difference.GetSafeNormal() * Speed * GetWorld()->GetDeltaSeconds();
+	FVector Delta = Difference.GetSafeNormal() * FlatSpeed * GetWorld()->GetDeltaSeconds();
 	float CurrentDistance = Difference.Size();
 	if (Delta.Size() > CurrentDistance)
 	{
@@ -80,4 +92,18 @@ void AMovingPlatform::MoveTowardsNextPoint()
 	FQuat NewRotation = FQuat::Slerp(TargetPoints[PreviousIndex]->GetActorQuat(), TargetPoints[Index]->GetActorQuat(), t);
 
 	RootComponent->MoveComponent(Delta, NewRotation, true);
+}
+
+void AMovingPlatform::MoveTowardsNextPointSmooth()
+{
+	float t = fminf(1, fmaxf(0, Timer / TimeBetweenPoints));
+
+	float alpha = FMath::SmoothStep(0, 1, t);
+
+	FVector Location = TargetPoints[PreviousIndex]->GetActorLocation() * (1 - alpha) + TargetPoints[Index]->GetActorLocation() * (alpha);
+	FQuat Rotation = FQuat::FastLerp(TargetPoints[PreviousIndex]->GetActorQuat(), TargetPoints[Index]->GetActorQuat(), alpha);
+
+	RootComponent->SetWorldLocationAndRotation(Location, Rotation);
+
+	Timer += GetWorld()->GetDeltaSeconds();
 }

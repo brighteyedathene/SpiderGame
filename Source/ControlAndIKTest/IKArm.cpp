@@ -52,6 +52,17 @@ void AIKArm::BeginPlay()
 {
 	Super::BeginPlay();
 	LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
+
+	/** If there is a Parent, update it first.
+	* When piggybacking at high speeds, 
+	* the Parent's piggyback movement should take place first
+	* since it also moves IKRoot on this Actor!
+	*/
+	AActor* Parent = GetParentActor();
+	if (Parent)
+	{
+		AddTickPrerequisiteActor(Parent);
+	}
 	
 	m_pTargetParent = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), RootComponent->GetComponentLocation(), RootComponent->GetComponentRotation());
 
@@ -73,7 +84,6 @@ void AIKArm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-
 	if (SHOW_DEBUG_INFO)
 	{
 		MarkSpot(m_pTargetParent->GetActorLocation(), FColor::Green);
@@ -83,11 +93,6 @@ void AIKArm::Tick(float DeltaTime)
 
 		if (m_pTargetParent->GetParentActor())
 			MarkLine(IKTargetFinal, m_pTargetParent->GetParentActor()->GetActorLocation(), FColor::White, 0);
-	}
-
-	if (!m_bNeedNewTarget)
-	{
-		IKTargetFinal = m_pTargetParent->GetActorLocation();
 	}
 
 	SmoothUpdateIKTarget();
@@ -105,6 +110,8 @@ void AIKArm::Tick(float DeltaTime)
 	{
 		//ProbeForIKTarget();
 	}
+
+
 
 
 	UpperArm->SetRelativeRotation(m_IKFrameRotation * FRotator(m_IKUpperArmAngle, 0, 0).Quaternion());
@@ -125,6 +132,13 @@ void AIKArm::Tick(float DeltaTime)
 
 void AIKArm::SmoothUpdateIKTarget()
 {
+	if (!m_bNeedNewTarget)
+	{
+		FVector CurrentOffset = IKTargetFinal - IKTargetIntermediate;
+		IKTargetFinal = m_pTargetParent->GetActorLocation();
+		IKTargetIntermediate = IKTargetFinal - CurrentOffset;
+	}
+
 	// Simple and bad, should improve so that the target moves up a little between points
 	float t = 0.4;
 	IKTargetIntermediate = IKTargetIntermediate * (1 - t) + IKTargetFinal * t;
@@ -425,7 +439,7 @@ void AIKArm::ReceiveGaitInput(FVector MovementDelta)
 
 void AIKArm::DebugDrawArm()
 {
-	FColor LegColor = FColor::Red;
+	FColor LegColor = FColor::Orange;
 
 	// Upper Arm
 	DrawDebugLine(
@@ -471,8 +485,9 @@ void AIKArm::DebugDrawProbes()
 }
 
 
-void AIKArm::MarkSpot(FVector Point, FColor Colour)
+void AIKArm::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
+	bool IsPersistant = Duration > 0;
 	float length = 10.f;
 	for (int x = -1; x <= 1; x++)
 	{
@@ -480,7 +495,7 @@ void AIKArm::MarkSpot(FVector Point, FColor Colour)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, true, -1, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 1.f);
 			}
 		}
 	}

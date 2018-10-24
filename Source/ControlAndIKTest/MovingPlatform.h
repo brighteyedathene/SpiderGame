@@ -30,12 +30,16 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	void MoveTowardsNextPoint();
+	void MoveTowardsNextPointSmooth();
+	void MoveTowardsNextPointFlatSpeed();
+
 
 	int Index;
 	int PreviousIndex;
 	bool bReversing;
 	float ArrivalThresholdSquared;
+
+	float Timer;
 
 public:	
 	// Called every frame
@@ -44,8 +48,15 @@ public:
 	UPROPERTY(EditAnywhere)
 	TArray<ATargetPoint*> TargetPoints;
 
+
 	UPROPERTY(EditAnywhere)
-	float Speed;
+	float TimeBetweenPoints;
+
+	UPROPERTY(EditAnywhere)
+	bool bUseFlatSpeed;
+		
+	UPROPERTY(EditAnywhere)
+	float FlatSpeed;
 
 	UPROPERTY(EditAnywhere)
 	float ArrivalThreshold;
