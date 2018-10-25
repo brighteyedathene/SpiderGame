@@ -58,7 +58,8 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AWallCrawler::JumpPressed);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &AWallCrawler::JumpReleased);
-	PlayerInputComponent->BindAction("Drop", IE_Pressed, this, &AWallCrawler::DropPressed);
+	PlayerInputComponent->BindAction("Roll", IE_Pressed, this, &AWallCrawler::RollPressed);
+	PlayerInputComponent->BindAction("Roll", IE_Released, this, &AWallCrawler::RollReleased);
 
 }
 
@@ -110,6 +111,10 @@ void AWallCrawler::Tick(float DeltaTime)
 	if (CrawlerMovement->IsCrawling())
 	{
 		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity() * GetWorld()->GetDeltaSeconds());
+	}
+	else if (CrawlerMovement->IsRolling())
+	{
+		CrawlerGaitControl->Slide(CrawlerMovement->GetVelocity() * GetWorld()->GetDeltaSeconds());
 	}
 
 	// Clear all Inputs 
@@ -163,13 +168,15 @@ void AWallCrawler::JumpReleased()
 {
 	CrawlerMovement->MaybeEndJump();
 }
-void AWallCrawler::DropPressed()
+void AWallCrawler::RollPressed()
 {
-
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll pressed"));
+	CrawlerMovement->StartRoll();
 }
-void AWallCrawler::DropReleased()
+void AWallCrawler::RollReleased()
 {
-
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll released"));
+	CrawlerMovement->EndRoll();
 }
 
 

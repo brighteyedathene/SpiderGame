@@ -67,8 +67,8 @@ protected:
 	
 	void JumpPressed();
 	void JumpReleased();
-	void DropPressed();
-	void DropReleased();
+	void RollPressed();
+	void RollReleased();
 	
 	void FlushInput();
 

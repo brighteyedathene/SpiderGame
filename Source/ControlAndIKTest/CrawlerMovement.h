@@ -19,7 +19,9 @@ enum class ECrawlerState : uint8
 	/** Free-falling. */
 	Falling,
 	/** Jumping (still rising) */
-	Jumping
+	Jumping,
+	/** Rolling (Not clinging) */
+	Rolling
 };
 
 
@@ -40,6 +42,8 @@ class CONTROLANDIKTEST_API UCrawlerMovement : public UPawnMovementComponent
 
 
 public:
+
+#pragma region Surface
 	/** Maximum velocity magnitude allowed for the controlled Pawn on a surface. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float MaxSpeedOnSurface;
@@ -97,8 +101,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float ClimbMultiplier;
 
+#pragma endregion Surface
 
 
+#pragma region Aerial
 
 	/** Maximum horizontal velocity magnitude for the Pawn to propel itself in the air. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AerialMovement)
@@ -135,6 +141,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Jumping)
 	float MaxFallTime;
 
+#pragma endregion Aerial
+
+#pragma region Rolling
+
+	/** Maximum roll speed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rolling)
+	float MaxSpeedWhileRolling;
+
+	/** Acceleration applied by input (rate of change of velocity) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rolling)
+	float RollingAcceleration;
+
+	/** Deceleration applied when there is no input (rate of change of velocity) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rolling)
+	float RollingDeceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rolling)
+	float RollingRotationAlpha;
+
+#pragma endregion Rolling
+
+
+
 	ECrawlerState CrawlerState;
 	void SetFalling() { CrawlerState = ECrawlerState::Falling; };
 	bool IsFalling() { return CrawlerState == ECrawlerState::Falling; };
@@ -144,6 +173,9 @@ public:
 
 	void SetCrawling() { CrawlerState = ECrawlerState::Crawling; AirTimer = 0.f; };
 	bool IsCrawling() { return CrawlerState == ECrawlerState::Crawling; };
+
+	void SetRolling() { CrawlerState = ECrawlerState::Rolling; AirTimer = 0.f; };
+	bool IsRolling() { return CrawlerState == ECrawlerState::Rolling; };
 
 	FVector GetVelocity() { return Velocity; };
 
@@ -223,7 +255,9 @@ public:
 	void MaybeEndJump();
 
 protected:
+	UPROPERTY(Transient)
 	bool bJumpInProgress;
+	UPROPERTY(Transient)
 	bool bStillWantToJump;
 
 	void AddJumpVelocity();
@@ -239,6 +273,22 @@ protected:
 	FVector JumpDirection;
 
 #pragma endregion JumpStuff
+
+
+#pragma region RollStuff
+
+public:
+	void StartRoll();
+	void EndRoll();
+
+protected:
+	UPROPERTY(Transient)
+	bool bWantToRoll;
+
+#pragma endregion JumpStuff
+
+
+
 
 	// Delete these later
 	void MarkSpot(FVector Point, FColor Colour, float Duration = 1.f);

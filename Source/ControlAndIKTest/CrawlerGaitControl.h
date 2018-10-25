@@ -43,6 +43,9 @@ public:
 
 	void UpdateGait(FVector MovementDelta);
 
+	void Slide(FVector MovementDelta);
+
+
 	// DELETE THIS LATER
 	void MarkSpot(FVector Point, FColor Colour);
 };

@@ -35,8 +35,12 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	MaxJumpTime = 0.5;
 	MaxFallTime = 0.4;
 
-
+	MaxSpeedWhileRolling = 5000.f;
+	RollingAcceleration = 2000.f;
+	RollingDeceleration = 3000.f;
+	RollingRotationAlpha = 0.2f;
 	
+
 	bPositionCorrected = false;
 	CrawlerState = ECrawlerState::Falling;
 	
@@ -123,11 +127,15 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	FVector PendingInput = GetPendingInputVector();
 
 
-	if (IsCrawling() && bJumpInProgress)
+	if (bWantToRoll && IsCrawling())
+	{
+		SetRolling();
+	}
+
+	if (!IsJumping() && !IsFalling() && bJumpInProgress)
 	{
 		AddJumpVelocity();
 		SetJumping();
-		UpdatedComponent->GetOwner()->RemoveFromRoot();
 		FVector PiggybackVelocity = (MobileTargetActor->GetActorLocation() - LatchPoint) / GetWorld()->GetDeltaSeconds();
 		Velocity += PiggybackVelocity;
 	}
@@ -135,6 +143,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("crawl"));
 
 		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
 		{
@@ -174,6 +183,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 		break;
 
 	case ECrawlerState::Jumping:
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("jump"));
 
 		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
 		ApplyControlInputToVelocity(DeltaTime);
@@ -190,6 +200,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 		break;
 
 	case ECrawlerState::Falling:
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("fall"));
 
 		{
 			// Scoped to avoid redefinition of the following variables
@@ -209,6 +220,51 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 
 		break;
 
+	case ECrawlerState::Rolling:
+		/** Like crawling, but with key differences:
+		* - No climb vector to help with low obstacles
+		* - Latch points can be lost without
+		*/ 
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("roll"));
+
+
+		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
+		{
+			FVector LatchPointDiff = MobileTargetActor->GetActorLocation() - LatchPoint;
+			FQuat LatchNormalDiff = FQuat::FindBetween(MobileTargetActor->GetActorRotation().Vector(), LatchNormal);
+
+			UpdatedComponent->AddRelativeRotation(LatchNormalDiff, true);
+			UpdatedComponent->AddRelativeLocation(LatchPointDiff * PiggybackStrength, true);
+
+			LatchPoint = MobileTargetActor->GetActorLocation();
+			LatchNormal = MobileTargetActor->GetActorRotation().Vector();
+		}
+
+		{
+			// Scoped to avoid redefinition of the following variables
+			FVector AverageLocation, AverageNormal;
+			float SuggestedClimbFactor = 0;
+			int HitCount;
+			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, PendingInput.GetSafeNormal(), 5))
+			{
+				SetLatchPoint(AverageLocation, AverageNormal);
+
+				FVector ClingVector = GetClingVector(LatchPoint, LatchNormal);
+				AddInputVector(ClingVector * DeltaTime);
+
+				RotateTowardsNormal(LatchNormal, SurfaceRotationAlpha);
+			}
+			else
+			{
+				SetFalling();
+			}
+		}
+
+		if (!bWantToRoll)
+			SetFalling();
+
+		ApplyControlInputToVelocity(DeltaTime);
+
 	}
 
 
@@ -221,6 +277,7 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 
 	const float AnalogInputModifier = (ControlAcceleration.SizeSquared() > 0.f ? ControlAcceleration.Size() : 0.f);
 	const float MaxPawnSpeed = GetMaxSpeed() * AnalogInputModifier;
+	const float MaxSelfPropelSpeed = (IsRolling() ? MaxSpeedWhileRolling : MaxSpeedOnSurface);
 
 	//FVector WorkingVelocity = (!IsCrawling()) ? FVector(Velocity.X, Velocity.Y, 0.f) : Velocity;
 	FVector WorkingVelocity = Velocity;
@@ -259,22 +316,34 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 	WorkingVelocity += ControlAcceleration * FMath::Abs(GetAcceleration()) * DeltaTime;
 	WorkingVelocity = WorkingVelocity.GetClampedToMaxSize(NewMaxSpeed);
 
-	// Apply jump force
-	if (IsJumping())
-	{
-		WorkingVelocity.Z = fmaxf(Velocity.Z - GetJumpingGravity() * DeltaTime, -TerminalVelocity);
-	}
-
 	// Apply gravity
 	if (IsFalling())
 	{
 		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * DeltaTime, -TerminalVelocity);
+	}
+	if (IsJumping())
+	{
+		WorkingVelocity.Z = fmaxf(Velocity.Z - GetJumpingGravity() * DeltaTime, -TerminalVelocity);
+	}
+	if (IsRolling())
+	{
+		float GravtiyFactor = 1 - (WorkingVelocity.Size() / MaxSpeedWhileRolling);
+		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * GravtiyFactor * DeltaTime, -TerminalVelocity);
 	}
 
 	Velocity = WorkingVelocity;
 	ConsumeInputVector();
 }
 
+
+void UCrawlerMovement::StartRoll()
+{
+	bWantToRoll = true;
+}
+void UCrawlerMovement::EndRoll()
+{
+	bWantToRoll = false;
+}
 
 void UCrawlerMovement::MaybeStartJump()
 {
@@ -310,18 +379,48 @@ float UCrawlerMovement::GetFallingGravity()
 
 float UCrawlerMovement::GetAcceleration()
 {
-	return (IsCrawling()) ? Acceleration : AerialAcceleration;
+	switch (CrawlerState)
+	{
+	case ECrawlerState::Crawling:
+		return Acceleration;
+
+	case ECrawlerState::Rolling:
+		return RollingAcceleration;
+
+	default:
+		return AerialAcceleration;
+	}
 }
 
 float UCrawlerMovement::GetDeceleration()
 {
-	return (IsCrawling()) ? Deceleration : AerialDeceleration;
+	switch (CrawlerState)
+	{
+	case ECrawlerState::Crawling:
+		return Deceleration;
+
+	case ECrawlerState::Rolling:
+		return RollingDeceleration;
+
+	default:
+		return AerialDeceleration;
+	}
 }
 
 
 float UCrawlerMovement::GetMaxSpeed()
 {
-	return IsCrawling() ? MaxSpeedOnSurface : MaxSpeedInAir;
+	switch (CrawlerState)
+	{
+	case ECrawlerState::Crawling:
+		return MaxSpeedOnSurface;
+
+	case ECrawlerState::Rolling:
+		return MaxSpeedWhileRolling;
+
+	default:
+		return MaxSpeedInAir;
+	}
 }
 
 bool UCrawlerMovement::IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const
