@@ -109,7 +109,7 @@ void AWallCrawler::Tick(float DeltaTime)
 
 	if (CrawlerMovement->IsCrawling())
 	{
-		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity());
+		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity() * GetWorld()->GetDeltaSeconds());
 	}
 
 	// Clear all Inputs 

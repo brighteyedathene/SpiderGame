@@ -49,8 +49,6 @@ void UCrawlerGaitControl::TickComponent(float DeltaTime, ELevelTick TickType, FA
 
 void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 {
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White,  MovementDelta.ToCompactString());
-
 	CurrentGaitPosition += MovementDelta.Size();
 
 	if (CurrentGaitPosition > GaitStepLength)

@@ -53,6 +53,9 @@ public:
 	float TimeBetweenPoints;
 
 	UPROPERTY(EditAnywhere)
+	bool bUseSmoothStep;
+
+	UPROPERTY(EditAnywhere)
 	bool bUseFlatSpeed;
 		
 	UPROPERTY(EditAnywhere)

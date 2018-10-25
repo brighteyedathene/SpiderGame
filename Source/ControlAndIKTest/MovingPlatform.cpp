@@ -36,12 +36,20 @@ void AMovingPlatform::Tick(float DeltaTime)
 
 	if (bActive && TargetPoints.Num() > 0)
 	{
+		bool Arrived;
 		if (bUseFlatSpeed)
+		{
 			MoveTowardsNextPointFlatSpeed();
-		else
-			MoveTowardsNextPointSmooth();
+			Arrived = FVector::DistSquared(RootComponent->GetComponentLocation(), TargetPoints[Index]->GetActorLocation()) < ArrivalThresholdSquared;
+		}
 
-		if (FVector::DistSquared(RootComponent->GetComponentLocation(), TargetPoints[Index]->GetActorLocation()) < ArrivalThresholdSquared)
+		else
+		{
+			MoveTowardsNextPointSmooth();
+			Arrived = Timer >= TimeBetweenPoints;
+		}
+		
+		if (Arrived)
 		{
 			// Increment index
 			PreviousIndex = Index;
@@ -98,10 +106,11 @@ void AMovingPlatform::MoveTowardsNextPointSmooth()
 {
 	float t = fminf(1, fmaxf(0, Timer / TimeBetweenPoints));
 
-	float alpha = FMath::SmoothStep(0, 1, t);
+	if (bUseSmoothStep)
+		t = FMath::SmoothStep(0, 1, t);
 
-	FVector Location = TargetPoints[PreviousIndex]->GetActorLocation() * (1 - alpha) + TargetPoints[Index]->GetActorLocation() * (alpha);
-	FQuat Rotation = FQuat::FastLerp(TargetPoints[PreviousIndex]->GetActorQuat(), TargetPoints[Index]->GetActorQuat(), alpha);
+	FVector Location = TargetPoints[PreviousIndex]->GetActorLocation() * (1 - t) + TargetPoints[Index]->GetActorLocation() * (t);
+	FQuat Rotation = FQuat::Slerp(TargetPoints[PreviousIndex]->GetActorQuat(), TargetPoints[Index]->GetActorQuat(), t);
 
 	RootComponent->SetWorldLocationAndRotation(Location, Rotation);
 
