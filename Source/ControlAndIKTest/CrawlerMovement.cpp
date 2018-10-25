@@ -5,8 +5,7 @@
 #include "DrawDebugHelpers.h"
 
 
-/* This already has a body apparently
-*/
+
 UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -21,6 +20,7 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	IdealDistanceTolerance = 80.f;
 	IdealDistanceThreshold = 20.f;
 	GripLossDistance = 180.f;
+	PiggybackStrength = 0.99f;
 	ClingMultiplier = 1400;
 	ClimbMultiplier = 200;
 
@@ -48,10 +48,12 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 }
 
 //TODO Calculate gravity and min jump time here
-//void UCrawlerMovement::BeginPlay()
-//{
-//	Super::BeginPlay()
-//}
+void UCrawlerMovement::BeginPlay()
+{
+	Super::BeginPlay();
+
+	MobileTargetActor = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+}
 
 
 void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -76,9 +78,8 @@ void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 		{
 			// Apply controller-based changes to velocity and state
 			UpdateCrawlerMovementState(DeltaTime);
-
 		}
-
+		// Perform the movement and handle colliding/sliding
 		MoveActor(DeltaTime);
 	}
 	
@@ -126,12 +127,27 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	{
 		AddJumpVelocity();
 		SetJumping();
+		UpdatedComponent->GetOwner()->RemoveFromRoot();
+		FVector PiggybackVelocity = (MobileTargetActor->GetActorLocation() - LatchPoint) / GetWorld()->GetDeltaSeconds();
+		Velocity += PiggybackVelocity;
 	}
 
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
-		
+
+		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
+		{
+			FVector LatchPointDiff = MobileTargetActor->GetActorLocation() - LatchPoint;
+			FQuat LatchNormalDiff = FQuat::FindBetween(MobileTargetActor->GetActorRotation().Vector(), LatchNormal);
+
+			UpdatedComponent->AddRelativeRotation(LatchNormalDiff, true);
+			UpdatedComponent->AddRelativeLocation(LatchPointDiff * PiggybackStrength, true);
+
+			LatchPoint = MobileTargetActor->GetActorLocation();
+			LatchNormal = MobileTargetActor->GetActorRotation().Vector();
+		}
+
 		{
 			// Scoped to avoid redefinition of the following variables
 			FVector AverageLocation, AverageNormal;
@@ -349,6 +365,9 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 	FVector NormalSum = FVector(0, 0, 0);
 	FVector LocationSum = FVector(0, 0, 0);
 	float MaxClimb = 0;
+	
+
+	float MinDistance = SurfaceRayLength + 10.f; // We need to attach the MovingTarget to the closest HitActor
 	FHitResult Hit;
 
 	// Probe for hits, accumulate normal and location sums, calculate climb value
@@ -381,6 +400,14 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 						MaxClimb = fmaxf(MaxClimb, fabsf(MoveDotRay) - fabsf(UpDotRay));
 						//MaxClimb = fminf(1.f, MaxClimb + fabsf(MoveDotRay) - fabsf(UpDotRay));
 					}
+
+					// Attach the MovingTargetActor to the closest Hit
+					if (Hit.Distance < MinDistance)
+					{
+						MinDistance = Hit.Distance;
+						MobileTargetActor->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
+						//UpdatedComponent->GetOwner()->AttachToActor(Hit.Actor.Get(), AttachmentRules);
+					}
 				}
 			}
 		}
@@ -406,6 +433,7 @@ void UCrawlerMovement::SetLatchPoint(FVector Location, FVector Normal)
 {
 	LatchPoint = Location;
 	LatchNormal = Normal;
+	MobileTargetActor->SetActorLocationAndRotation(Location, Normal.Rotation());
 }
 
 
@@ -480,8 +508,9 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 
 
 // Delte these later
-void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour)
+void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
+	bool IsPersistant = Duration > 0;
 	float length = 10.f;
 	for (int x = -1; x <= 1; x++)
 	{
@@ -489,7 +518,7 @@ void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, true, -1, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 1.f);
 			}
 		}
 	}

@@ -22,7 +22,6 @@ AIKArm::AIKArm()
 	UpperArm->SetupAttachment(RootComponent);
 	LowerArm = CreateDefaultSubobject<USceneComponent>(TEXT("LowerArm"));
 	LowerArm->SetupAttachment(UpperArm);
-	
 
 	ProbeBase = CreateDefaultSubobject<USceneComponent>(TEXT("ProbeBase"));
 	ProbeBase->SetupAttachment(RootComponent);
@@ -52,17 +51,27 @@ void AIKArm::BeginPlay()
 {
 	Super::BeginPlay();
 	LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
+
+	/** If there is a Parent, update it first.
+	* When piggybacking at high speeds, 
+	* the Parent's piggyback movement should take place first
+	* since it also moves IKRoot on this Actor!
+	*/
+	AActor* Parent = GetParentActor();
+	if (Parent)
+	{
+		AddTickPrerequisiteActor(Parent);
+	}
 	
+	m_pTargetParent = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), RootComponent->GetComponentLocation(), RootComponent->GetComponentRotation());
+
 	IKProbes.Add(FIKProbe(ProbeBase, HighTarget));
 	IKProbes.Add(FIKProbe(ProbeBase, GroundTarget));
-	//IKProbes.Add(FIKProbe(MidTarget, GroundTarget));
 	IKProbes.Add(FIKProbe(MidTarget, LowTarget));
-	//IKProbes.Add(FIKProbe(GroundTarget, LowTarget));
 
 	IKProbes.Add(FIKProbe(MidTarget, UnderTarget));
 	IKProbes.Add(FIKProbe(GroundTarget, UnderTarget));
 	IKProbes.Add(FIKProbe(GroundTarget, OffAxisTargetA));
-	//IKProbes.Add(FIKProbe(GroundTarget, OffAxisTargetB));
 }
 
 
@@ -82,17 +91,11 @@ void AIKArm::Tick(float DeltaTime)
 	{
 		ProbeForIKTarget(m_bMovementDelta.GetSafeNormal() * DirectionModifierStrength);
 	}
-	if (m_bNeedNewTarget)
-	{
-		//ProbeForIKTarget();
-	}
-
 
 	UpperArm->SetRelativeRotation(m_IKFrameRotation * FRotator(m_IKUpperArmAngle, 0, 0).Quaternion());
 	LowerArm->SetRelativeRotation(FRotator(m_IKLowerArmAngle, 0, 0));
 
 	m_bMovementDelta = FVector(0,0,0);
-	
 	
 	if (SHOW_DEBUG_INFO)
 	{
@@ -106,9 +109,20 @@ void AIKArm::Tick(float DeltaTime)
 
 void AIKArm::SmoothUpdateIKTarget()
 {
+	// Compensate for moving IK targets
+	if (!m_bNeedNewTarget)
+	{
+		FVector CurrentOffset = IKTargetFinal - IKTargetIntermediate;
+		IKTargetFinal = m_pTargetParent->GetActorLocation();
+		IKTargetIntermediate = IKTargetFinal - CurrentOffset;
+	}
+
 	// Simple and bad, should improve so that the target moves up a little between points
 	float t = 0.4;
 	IKTargetIntermediate = IKTargetIntermediate * (1 - t) + IKTargetFinal * t;
+
+	//MarkSpot(IKTargetFinal, FColor::Red);
+	//MarkSpot(m_pTargetParent->GetActorLocation(), FColor::Green);
 
 	//IKTargetTransitionTimer += GetWorld()->GetDeltaSeconds();
 	//if (IKTargetTransitionTimer < IKTargetTransitionDuration)
@@ -149,25 +163,13 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			SetIKTarget(Hit.ImpactPoint);
 			if (AttemptSolveIK())
 			{
-				if (SHOW_DEBUG_INFO)
-				{
-					//MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Green, 2);
-					//MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
-				}
+				m_pTargetParent->SetActorLocationAndRotation(Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+				m_pTargetParent->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
 
 				m_bNeedNewTarget = false;
 				return;
 			}
-			else if (SHOW_DEBUG_INFO)
-			{
-				//MarkLine(IKProbe.GetStart(), Hit.ImpactPoint, FColor::Red, 2);
-				//MarkLine(IKProbe.GetStart(), IKProbe.End->GetComponentLocation(), FColor::White, 10);
-			}
 
-		}
-		else if (SHOW_DEBUG_INFO)
-		{
-			//MarkLine(IKProbe.GetStart(), IKProbe.GetModifiedRayEnd(DirectionModifier), FColor::Orange, 10);
 		}
 	}
 
@@ -190,7 +192,6 @@ bool AIKArm::AttemptSolveIK()
 	FQuat FinalFrameRotation = GetIKFrameRotationMatrix(IKTargetFinal).ToQuat(); // Rotates (World -> IKFrame)
 	FQuat FrameRotation = GetIKFrameRotationMatrix(IKTargetIntermediate).ToQuat(); // Rotates (World -> IKFrame)
 	FQuat LocalRotation = IKRoot->GetComponentQuat().Inverse() * FrameRotation; // Rotates (IKRoot ->IKFrame)
-	
 
 	// First, check the final IK target
 	{
@@ -202,7 +203,6 @@ bool AIKArm::AttemptSolveIK()
 			if (SHOW_DEBUG_INFO)
 			{
 				MarkSpot(IKTargetFinal, FColor::Blue);
-				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("ANGLE FAILURE!"));
 			}
 
 			SolutionInvalid = true;
@@ -236,7 +236,6 @@ bool AIKArm::AttemptSolveIK()
 		if (SHOW_DEBUG_INFO)
 		{
 			MarkSpot(IKTargetIntermediate, FColor::Cyan);
-			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("DISTANCE FAILURE!"));
 		}
 
 		SolutionInvalid = true;
@@ -246,7 +245,6 @@ bool AIKArm::AttemptSolveIK()
 		UpperArmAngle = FindAngleA(LowerArmLength, Distance, UpperArmLength);
 		LowerArmAngle = 180 + FindAngleA(Distance, LowerArmLength, UpperArmLength);
 	}
-
 
 	m_IKFrameRotation = LocalRotation;
 	m_IKUpperArmAngle = UpperArmAngle;
@@ -356,7 +354,6 @@ bool AIKArm::DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, f
 	FVector JointPosition = IKRoot->GetComponentLocation() + UpperArmRotation.GetForwardVector() * UpperArmLength;
 	FVector EndPosition = JointPosition + LowerArmRotation.GetForwardVector() * LowerArmLength * 0.8; // Don't quite hit the target.
 
-
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(this);
 	CollisionParameters.AddIgnoredActor(this->GetParentActor());
@@ -370,9 +367,6 @@ bool AIKArm::DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, f
 		ECC_Visibility,
 		CollisionParameters))
 	{
-		if (SHOW_DEBUG_INFO)
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
-
 		return true;
 	}
 	// From LowerArm to IKTarget ALMOST (We don't want to actually hit the target!) see EndPosition
@@ -383,9 +377,6 @@ bool AIKArm::DoesThisSolutionCollide(FQuat FrameRotation, float UpperArmAngle, f
 		ECC_Visibility,
 		CollisionParameters))
 	{
-		if (SHOW_DEBUG_INFO)
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, AActor::GetDebugName(Hit.Actor.Get()));
-
 		return true;
 	}
 
@@ -403,7 +394,7 @@ void AIKArm::ReceiveGaitInput(FVector MovementDelta)
 
 void AIKArm::DebugDrawArm()
 {
-	FColor LegColor = FColor::Red;
+	FColor LegColor = FColor::Orange;
 
 	// Upper Arm
 	DrawDebugLine(
@@ -449,8 +440,9 @@ void AIKArm::DebugDrawProbes()
 }
 
 
-void AIKArm::MarkSpot(FVector Point, FColor Colour)
+void AIKArm::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
+	bool IsPersistant = Duration > 0;
 	float length = 10.f;
 	for (int x = -1; x <= 1; x++)
 	{
@@ -458,7 +450,7 @@ void AIKArm::MarkSpot(FVector Point, FColor Colour)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, true, -1, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 1.f);
 			}
 		}
 	}
