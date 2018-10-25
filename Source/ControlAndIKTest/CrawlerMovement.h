@@ -210,10 +210,8 @@ protected:
 		FVector MovementDirection,
 		int RaysPerAxis);
 
-	/** Raycasting shit - somethign complains about making this a UPROPERTY */
-	//UPROPERTY(EditAnywhere, Category = WallCrawling)
+	/** Collision settings for the environment rays */ 
 	FCollisionQueryParams CollisionParameters;
-	//UPROPERTY(EditAnywhere, Category = WallCrawling)
 	ECollisionChannel TraceChannel;
 
 #pragma endregion WallCrawlingStuff

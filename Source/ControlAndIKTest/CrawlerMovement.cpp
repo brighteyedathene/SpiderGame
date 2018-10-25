@@ -4,8 +4,8 @@
 
 #include "DrawDebugHelpers.h"
 
-/* This already has a body apparently
-*/
+
+
 UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
