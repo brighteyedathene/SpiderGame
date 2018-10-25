@@ -177,7 +177,6 @@ protected:
 
 	/** This actor is to be attached to moving targets so the crawler can stick with them as they move */
 	AMobileTargetActor* MobileTargetActor;
-	//FTransform ParentOffset;
 
 	/** This point anchors the crawler to a surface.
 	* As long as there is a LatchPoint, the crawler will not begin to fall

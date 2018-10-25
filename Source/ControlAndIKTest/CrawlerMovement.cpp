@@ -3,7 +3,6 @@
 #include "CrawlerMovement.h"
 
 #include "DrawDebugHelpers.h"
-#include "CoreGlobals.h"
 
 /* This already has a body apparently
 */
