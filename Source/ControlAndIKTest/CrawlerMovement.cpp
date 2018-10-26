@@ -14,7 +14,7 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	Deceleration = 8000.f;
 	TurningBoost = 8.0f;
 
-	SurfaceRotationAlpha = 0.2;
+	SurfaceRotationAlpha = 15.f;
 	SurfaceRayLength = 180.f;
 	IdealDistanceToSurface = 80.f;
 	IdealDistanceTolerance = 80.f;
@@ -28,7 +28,7 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	TerminalVelocity = 9000.f;
 	AerialAcceleration = 3000.f;
 	AerialDeceleration = 6000.f;
-	AerialRotationAlpha = 0.1;
+	AerialRotationAlpha = 15.f;
 	
 	MaxJumpHeight = 400.f;
 	MinJumpHeight = 40.f;
@@ -38,7 +38,7 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	MaxSpeedWhileRolling = 5000.f;
 	RollingAcceleration = 2000.f;
 	RollingDeceleration = 3000.f;
-	RollingRotationAlpha = 0.2f;
+	RollingRotationAlpha = 15.f;
 	
 
 	bPositionCorrected = false;
@@ -593,7 +593,7 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 
 	// Apply the rotation to RootComponent
 	FQuat RootQuat = UpdatedComponent->GetComponentQuat();
-	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t);
+	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t * GetWorld()->GetDeltaSeconds());
 	UpdatedComponent->SetRelativeRotation(FinalQuat);
 }
 

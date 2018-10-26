@@ -38,6 +38,7 @@ AWallCrawler::AWallCrawler()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false; 
 
+	YawFactor = 6.0f;
 }
 
 // Called to bind functionality to input
@@ -87,7 +88,7 @@ void AWallCrawler::Tick(float DeltaTime)
 	if (LocalYaw < 0.0f)
 		LocalYaw += 360.0f;
 
-	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw*2.5, 0);
+	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw * YawFactor, 0);
 	CameraBoom->SetRelativeRotation(CameraRotation);
 
 	// Movement control...
