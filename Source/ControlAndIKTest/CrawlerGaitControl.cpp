@@ -85,6 +85,15 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 	//}
 }
 
+void UCrawlerGaitControl::Slide(FVector MovementDelta)
+{
+	// Update all legs with need new target
+	for (auto Leg : Legs)
+	{
+		Leg->ReceiveGaitInput(MovementDelta);
+	}
+}
+
 void UCrawlerGaitControl::MarkSpot(FVector Point, FColor Colour)
 {
 	float length = 10.f;

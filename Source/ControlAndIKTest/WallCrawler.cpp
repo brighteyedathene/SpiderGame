@@ -38,6 +38,7 @@ AWallCrawler::AWallCrawler()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false; 
 
+	YawFactor = 6.0f;
 }
 
 // Called to bind functionality to input
@@ -58,7 +59,8 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AWallCrawler::JumpPressed);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &AWallCrawler::JumpReleased);
-	PlayerInputComponent->BindAction("Drop", IE_Pressed, this, &AWallCrawler::DropPressed);
+	PlayerInputComponent->BindAction("Roll", IE_Pressed, this, &AWallCrawler::RollPressed);
+	PlayerInputComponent->BindAction("Roll", IE_Released, this, &AWallCrawler::RollReleased);
 
 }
 
@@ -86,7 +88,7 @@ void AWallCrawler::Tick(float DeltaTime)
 	if (LocalYaw < 0.0f)
 		LocalYaw += 360.0f;
 
-	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw*2.5, 0);
+	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw * YawFactor, 0);
 	CameraBoom->SetRelativeRotation(CameraRotation);
 
 	// Movement control...
@@ -104,12 +106,17 @@ void AWallCrawler::Tick(float DeltaTime)
 	MovementDirection.Normalize();
 
 	// TODO change this so that camera movement isn't tied to rotation speed in the movement component!
-	CrawlerMovement->SetCameraForward(CameraBoom->GetForwardVector()); 
+	CrawlerMovement->SetCameraRotation(CameraBoom->GetComponentQuat(), LocalPitch); 
+
 	AddMovementInput(MovementDirection, MovementIntensity);
 
 	if (CrawlerMovement->IsCrawling())
 	{
 		CrawlerGaitControl->UpdateGait(CrawlerMovement->GetVelocity() * GetWorld()->GetDeltaSeconds());
+	}
+	else if (CrawlerMovement->IsRolling())
+	{
+		CrawlerGaitControl->Slide(CrawlerMovement->GetVelocity() * GetWorld()->GetDeltaSeconds());
 	}
 
 	// Clear all Inputs 
@@ -163,13 +170,15 @@ void AWallCrawler::JumpReleased()
 {
 	CrawlerMovement->MaybeEndJump();
 }
-void AWallCrawler::DropPressed()
+void AWallCrawler::RollPressed()
 {
-
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll pressed"));
+	CrawlerMovement->StartRoll();
 }
-void AWallCrawler::DropReleased()
+void AWallCrawler::RollReleased()
 {
-
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll released"));
+	CrawlerMovement->EndRoll();
 }
 
 

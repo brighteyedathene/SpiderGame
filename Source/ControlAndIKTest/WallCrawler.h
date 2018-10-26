@@ -25,6 +25,9 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 
+	UPROPERTY(EditAnywhere, Category = Camera)
+	float YawFactor;
+
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
@@ -67,8 +70,8 @@ protected:
 	
 	void JumpPressed();
 	void JumpReleased();
-	void DropPressed();
-	void DropReleased();
+	void RollPressed();
+	void RollReleased();
 	
 	void FlushInput();
 

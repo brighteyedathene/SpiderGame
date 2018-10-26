@@ -14,7 +14,7 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	Deceleration = 8000.f;
 	TurningBoost = 8.0f;
 
-	SurfaceRotationAlpha = 0.2;
+	SurfaceRotationAlpha = 15.f;
 	SurfaceRayLength = 180.f;
 	IdealDistanceToSurface = 80.f;
 	IdealDistanceTolerance = 80.f;
@@ -28,15 +28,19 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	TerminalVelocity = 9000.f;
 	AerialAcceleration = 3000.f;
 	AerialDeceleration = 6000.f;
-	AerialRotationAlpha = 0.1;
+	AerialRotationAlpha = 15.f;
 	
 	MaxJumpHeight = 400.f;
 	MinJumpHeight = 40.f;
 	MaxJumpTime = 0.5;
 	MaxFallTime = 0.4;
 
-
+	MaxSpeedWhileRolling = 5000.f;
+	RollingAcceleration = 2000.f;
+	RollingDeceleration = 3000.f;
+	RollingRotationAlpha = 15.f;
 	
+
 	bPositionCorrected = false;
 	CrawlerState = ECrawlerState::Falling;
 	
@@ -123,11 +127,15 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	FVector PendingInput = GetPendingInputVector();
 
 
-	if (IsCrawling() && bJumpInProgress)
+	if (bCanRoll && bWantToRoll && IsCrawling())
+	{
+		SetRolling();
+	}
+
+	if (!IsJumping() && !IsFalling() && bJumpInProgress)
 	{
 		AddJumpVelocity();
 		SetJumping();
-		UpdatedComponent->GetOwner()->RemoveFromRoot();
 		FVector PiggybackVelocity = (MobileTargetActor->GetActorLocation() - LatchPoint) / GetWorld()->GetDeltaSeconds();
 		Velocity += PiggybackVelocity;
 	}
@@ -209,6 +217,45 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 
 		break;
 
+	case ECrawlerState::Rolling:
+		/** Like crawling, but with key differences:
+		* - No climb vector to help with low obstacles
+		* - Latch points can be lost without
+		*/ 
+
+		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
+		{
+			FVector LatchPointDiff = MobileTargetActor->GetActorLocation() - LatchPoint;
+			FQuat LatchNormalDiff = FQuat::FindBetween(MobileTargetActor->GetActorRotation().Vector(), LatchNormal);
+
+			UpdatedComponent->AddRelativeRotation(LatchNormalDiff, true);
+			UpdatedComponent->AddRelativeLocation(LatchPointDiff * PiggybackStrength, true);
+
+			LatchPoint = MobileTargetActor->GetActorLocation();
+			LatchNormal = MobileTargetActor->GetActorRotation().Vector();
+		}
+
+		{
+			// Scoped to avoid redefinition of the following variables
+			FVector AverageLocation, AverageNormal;
+			float SuggestedClimbFactor = 0;
+			int HitCount;
+			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, PendingInput.GetSafeNormal(), 5))
+			{
+				SetLatchPoint(AverageLocation, AverageNormal);
+				RotateTowardsNormal(LatchNormal, RollingRotationAlpha);
+			}
+			else
+			{
+				SetFalling();
+			}
+		}
+
+		if (!bWantToRoll)
+			SetFalling();
+
+		ApplyControlInputToVelocity(DeltaTime);
+
 	}
 
 
@@ -259,22 +306,34 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 	WorkingVelocity += ControlAcceleration * FMath::Abs(GetAcceleration()) * DeltaTime;
 	WorkingVelocity = WorkingVelocity.GetClampedToMaxSize(NewMaxSpeed);
 
-	// Apply jump force
-	if (IsJumping())
-	{
-		WorkingVelocity.Z = fmaxf(Velocity.Z - GetJumpingGravity() * DeltaTime, -TerminalVelocity);
-	}
-
 	// Apply gravity
 	if (IsFalling())
 	{
 		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * DeltaTime, -TerminalVelocity);
+	}
+	if (IsJumping())
+	{
+		WorkingVelocity.Z = fmaxf(Velocity.Z - GetJumpingGravity() * DeltaTime, -TerminalVelocity);
+	}
+	if (IsRolling())
+	{
+		float GravtiyFactor = 1 - (WorkingVelocity.Size() / MaxSpeedWhileRolling);
+		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * GravtiyFactor * DeltaTime, -TerminalVelocity);
 	}
 
 	Velocity = WorkingVelocity;
 	ConsumeInputVector();
 }
 
+
+void UCrawlerMovement::StartRoll()
+{
+	bWantToRoll = true;
+}
+void UCrawlerMovement::EndRoll()
+{
+	bWantToRoll = false;
+}
 
 void UCrawlerMovement::MaybeStartJump()
 {
@@ -310,18 +369,48 @@ float UCrawlerMovement::GetFallingGravity()
 
 float UCrawlerMovement::GetAcceleration()
 {
-	return (IsCrawling()) ? Acceleration : AerialAcceleration;
+	switch (CrawlerState)
+	{
+	case ECrawlerState::Crawling:
+		return Acceleration;
+
+	case ECrawlerState::Rolling:
+		return RollingAcceleration;
+
+	default:
+		return AerialAcceleration;
+	}
 }
 
 float UCrawlerMovement::GetDeceleration()
 {
-	return (IsCrawling()) ? Deceleration : AerialDeceleration;
+	switch (CrawlerState)
+	{
+	case ECrawlerState::Crawling:
+		return Deceleration;
+
+	case ECrawlerState::Rolling:
+		return RollingDeceleration;
+
+	default:
+		return AerialDeceleration;
+	}
 }
 
 
 float UCrawlerMovement::GetMaxSpeed()
 {
-	return IsCrawling() ? MaxSpeedOnSurface : MaxSpeedInAir;
+	switch (CrawlerState)
+	{
+	case ECrawlerState::Crawling:
+		return MaxSpeedOnSurface;
+
+	case ECrawlerState::Rolling:
+		return MaxSpeedWhileRolling;
+
+	default:
+		return MaxSpeedInAir;
+	}
 }
 
 bool UCrawlerMovement::IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const
@@ -483,8 +572,8 @@ FQuat FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, 
 void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 {
 	// We will calculate a forward vector based on the model rotation, the normal and the camera
-	//const FVector CamForward = CameraBoom->GetComponentRotation().Vector();
-	const FVector CamForward = CameraForward;  ///////////////////////////////////////////////// TODO CHANGE THIS when rebuilding camera /
+	// CameraRelativePitch is used to keep the camera from locking up when looking directly up/down
+	const FVector CamForward = CameraRotation.GetForwardVector() + CameraRotation.GetUpVector() * (CameraRelativePitch / 90);
 	const FVector ModelUp = UpdatedComponent->GetUpVector();
 	const FVector ModelForward = ProjectToPlane(CamForward, ModelUp).GetSafeNormal();
 
@@ -502,10 +591,15 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 
 	// Apply the rotation to RootComponent
 	FQuat RootQuat = UpdatedComponent->GetComponentQuat();
-	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t);
+	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t * GetWorld()->GetDeltaSeconds());
 	UpdatedComponent->SetRelativeRotation(FinalQuat);
 }
 
+void UCrawlerMovement::SetCameraRotation(FQuat Rotation, float RelativePitch)
+{ 
+	CameraRotation = Rotation; 
+	CameraRelativePitch = RelativePitch;
+};
 
 // Delte these later
 void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour, float Duration)
