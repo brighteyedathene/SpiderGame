@@ -268,7 +268,6 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 
 	const float AnalogInputModifier = (ControlAcceleration.SizeSquared() > 0.f ? ControlAcceleration.Size() : 0.f);
 	const float MaxPawnSpeed = GetMaxSpeed() * AnalogInputModifier;
-	const float MaxSelfPropelSpeed = (IsRolling() ? MaxSpeedWhileRolling : MaxSpeedOnSurface);
 
 	//FVector WorkingVelocity = (!IsCrawling()) ? FVector(Velocity.X, Velocity.Y, 0.f) : Velocity;
 	FVector WorkingVelocity = Velocity;
@@ -320,7 +319,6 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 	{
 		float GravtiyFactor = 1 - (WorkingVelocity.Size() / MaxSpeedWhileRolling);
 		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * GravtiyFactor * DeltaTime, -TerminalVelocity);
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("gravity factor  = %f"), GravtiyFactor));
 	}
 
 	Velocity = WorkingVelocity;
