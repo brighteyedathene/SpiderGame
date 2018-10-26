@@ -143,7 +143,6 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("crawl"));
 
 		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
 		{
@@ -183,7 +182,6 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 		break;
 
 	case ECrawlerState::Jumping:
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("jump"));
 
 		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
 		ApplyControlInputToVelocity(DeltaTime);
@@ -200,7 +198,6 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 		break;
 
 	case ECrawlerState::Falling:
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("fall"));
 
 		{
 			// Scoped to avoid redefinition of the following variables
@@ -225,8 +222,6 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 		* - No climb vector to help with low obstacles
 		* - Latch points can be lost without
 		*/ 
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("roll"));
-
 
 		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
 		{
@@ -248,11 +243,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 			if (ExploreEnvironmentWithRays(&AverageLocation, &AverageNormal, &HitCount, &SuggestedClimbFactor, PendingInput.GetSafeNormal(), 5))
 			{
 				SetLatchPoint(AverageLocation, AverageNormal);
-
-				FVector ClingVector = GetClingVector(LatchPoint, LatchNormal);
-				AddInputVector(ClingVector * DeltaTime);
-
-				RotateTowardsNormal(LatchNormal, SurfaceRotationAlpha);
+				RotateTowardsNormal(LatchNormal, RollingRotationAlpha);
 			}
 			else
 			{
