@@ -127,7 +127,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	FVector PendingInput = GetPendingInputVector();
 
 
-	if (bWantToRoll && IsCrawling())
+	if (bCanRoll && bWantToRoll && IsCrawling())
 	{
 		SetRolling();
 	}
@@ -329,6 +329,7 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 	{
 		float GravtiyFactor = 1 - (WorkingVelocity.Size() / MaxSpeedWhileRolling);
 		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * GravtiyFactor * DeltaTime, -TerminalVelocity);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("gravity factor  = %f"), GravtiyFactor));
 	}
 
 	Velocity = WorkingVelocity;
@@ -582,8 +583,8 @@ FQuat FindLookAtQuat(const FVector& EyePosition, const FVector& LookAtPosition, 
 void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 {
 	// We will calculate a forward vector based on the model rotation, the normal and the camera
-	//const FVector CamForward = CameraBoom->GetComponentRotation().Vector();
-	const FVector CamForward = CameraForward;  ///////////////////////////////////////////////// TODO CHANGE THIS when rebuilding camera /
+	// CameraRelativePitch is used to keep the camera from locking up when looking directly up/down
+	const FVector CamForward = CameraRotation.GetForwardVector() + CameraRotation.GetUpVector() * (CameraRelativePitch / 90);
 	const FVector ModelUp = UpdatedComponent->GetUpVector();
 	const FVector ModelForward = ProjectToPlane(CamForward, ModelUp).GetSafeNormal();
 
@@ -605,6 +606,11 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 	UpdatedComponent->SetRelativeRotation(FinalQuat);
 }
 
+void UCrawlerMovement::SetCameraRotation(FQuat Rotation, float RelativePitch)
+{ 
+	CameraRotation = Rotation; 
+	CameraRelativePitch = RelativePitch;
+};
 
 // Delte these later
 void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour, float Duration)

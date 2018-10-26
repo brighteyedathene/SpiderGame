@@ -105,7 +105,8 @@ void AWallCrawler::Tick(float DeltaTime)
 	MovementDirection.Normalize();
 
 	// TODO change this so that camera movement isn't tied to rotation speed in the movement component!
-	CrawlerMovement->SetCameraForward(CameraBoom->GetForwardVector()); 
+	CrawlerMovement->SetCameraRotation(CameraBoom->GetComponentQuat(), LocalPitch); 
+
 	AddMovementInput(MovementDirection, MovementIntensity);
 
 	if (CrawlerMovement->IsCrawling())

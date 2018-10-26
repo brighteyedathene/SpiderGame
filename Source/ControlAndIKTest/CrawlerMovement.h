@@ -145,6 +145,10 @@ public:
 
 #pragma region Rolling
 
+	/** Can this crawler roll at all */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rolling)
+	bool bCanRoll;
+
 	/** Maximum roll speed */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rolling)
 	float MaxSpeedWhileRolling;
@@ -181,8 +185,9 @@ public:
 
 	
 	/** Placeholder until camera movement is rebuilt */
-	FVector CameraForward;
-	void SetCameraForward(FVector Direction) { CameraForward = Direction; };
+	FQuat CameraRotation;
+	float CameraRelativePitch;
+	void SetCameraRotation(FQuat Rotation, float RelativePitch);
 	
 
 protected:
