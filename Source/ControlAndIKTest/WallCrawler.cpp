@@ -39,6 +39,8 @@ AWallCrawler::AWallCrawler()
 	FollowCamera->bUsePawnControlRotation = false; 
 
 	YawFactor = 6.0f;
+
+	MaxHealth = 100.f;
 }
 
 // Called to bind functionality to input
@@ -68,6 +70,22 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 void AWallCrawler::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CurrentHealth = MaxHealth;
+
+	// Get the ragdoll sections
+	TArray<UStaticMeshComponent*> StaticMeshes;
+	GetComponents<UStaticMeshComponent>(StaticMeshes);
+	for (auto Mesh : StaticMeshes)
+	{
+
+		if (Mesh->GetFName() == RagdollTag)
+		{
+			RagdollMeshes.Add(Mesh);
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Added!"));
+		}
+	}
+	
 }
 
 // Called every frame
@@ -91,6 +109,14 @@ void AWallCrawler::Tick(float DeltaTime)
 	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw * YawFactor, 0);
 	CameraBoom->SetRelativeRotation(CameraRotation);
 
+	if (bDead)
+	{
+		InputPitch = 0;
+		InputForward = 0;
+		InputRight = 0;
+		return;
+	}
+
 	// Movement control...
 	// - This involves calculating camera forward/right 
 	// - and projecting it onto the current surface (given by the RootComponent orientation or world up)
@@ -98,15 +124,15 @@ void AWallCrawler::Tick(float DeltaTime)
 	const FVector CameraForward = FRotationMatrix(Rotation).GetUnitAxis(EAxis::X);
 	const FVector CameraRight = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Y);
 
+	// TODO change this so that camera movement isn't tied to rotation speed in the movement component!
+	CrawlerMovement->SetCameraRotation(CameraBoom->GetComponentQuat(), LocalPitch); 
+
 	FVector FDirection = FVector::VectorPlaneProject(CameraForward, RootComponent->GetUpVector()).GetSafeNormal();
 	FVector RDirection = FVector::VectorPlaneProject(CameraRight, RootComponent->GetUpVector()).GetSafeNormal();
 
 	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
 	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
 	MovementDirection.Normalize();
-
-	// TODO change this so that camera movement isn't tied to rotation speed in the movement component!
-	CrawlerMovement->SetCameraRotation(CameraBoom->GetComponentQuat(), LocalPitch); 
 
 	AddMovementInput(MovementDirection, MovementIntensity);
 
@@ -125,6 +151,61 @@ void AWallCrawler::Tick(float DeltaTime)
 }
 
 
+#pragma region Health
+
+float AWallCrawler::GetHealth_Implementation()
+{
+	return CurrentHealth;
+}
+
+void AWallCrawler::UpdateHealth_Implementation(float Delta)
+{
+	CurrentHealth = fminf(CurrentHealth + Delta, MaxHealth);
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("ouch I recieved %f damage! Now my health is %f"), Delta, CurrentHealth));
+	if (IsDead_Implementation())
+	{
+		Die_Implementation();
+	}
+}
+
+bool AWallCrawler::IsDead_Implementation()
+{
+	return CurrentHealth <= 0 || bDead;
+}
+void AWallCrawler::Die_Implementation()
+{
+	if (!bDead)
+	{
+		bDead = true;
+		
+		TArray<UStaticMeshComponent*> StaticMeshes;
+		GetComponents<UStaticMeshComponent>(StaticMeshes);
+		//for (auto Mesh : RagdollMeshes)
+		for (auto Mesh : StaticMeshes)
+		{
+			Mesh->SetSimulatePhysics(true);
+		}
+		MySphereComponent->SetSimulatePhysics(false); // everything except the root
+		MySphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+
+		for (auto Leg : CrawlerGaitControl->Legs)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("About to kill a leg"));
+			Leg->Die();
+			//Leg->DetachRootComponentFromParent();
+		}
+
+		CrawlerMovement->bShouldUpdate = false;
+
+		//GetCom
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("UWAAA!<dead>"));
+	}
+}
+#pragma endregion Health
+
+
+#pragma region Input
 void AWallCrawler::CollectYawInput(float Value)
 {
 	InputYaw += Value;
@@ -180,7 +261,7 @@ void AWallCrawler::RollReleased()
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll released"));
 	CrawlerMovement->EndRoll();
 }
-
+#pragma endregion Input
 
 void AWallCrawler::MarkSpot(FVector Point, FColor Colour, float Duration)
 {

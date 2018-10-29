@@ -43,6 +43,14 @@ AIKArm::AIKArm()
 	RestTarget = CreateDefaultSubobject<USceneComponent>(TEXT("RestTarget"));
 	RestTarget->SetupAttachment(RootComponent);
 
+	RestTargetSlack = 100.f;
+	UpperArmLength = 150; 
+	LowerArmLength = 200.f;
+	MaximumAngle = 60.f;
+	MaximumAngleUnderneath = 50.f;
+	DirectionModifierStrength = 165.f;
+
+	IKTargetTransitionSpeed = 40;
 }
 
 
@@ -80,6 +88,9 @@ void AIKArm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (bDead)
+		return;
+
 	SmoothUpdateIKTarget();
 
 	if (!AttemptSolveIK())
@@ -101,7 +112,7 @@ void AIKArm::Tick(float DeltaTime)
 	{
 		//MarkSpot(IKTargetIntermediate, FColor::White);
 		//MarkSpot(IKTargetFinal, FColor::Red);
-		DebugDrawProbes();
+		//DebugDrawProbes();
 	}
 }
 
@@ -118,7 +129,7 @@ void AIKArm::SmoothUpdateIKTarget()
 	}
 
 	// Simple and bad, should improve so that the target moves up a little between points
-	float t = 0.4;
+	float t = fminf(1, IKTargetTransitionSpeed * GetWorld()->GetDeltaSeconds());
 	IKTargetIntermediate = IKTargetIntermediate * (1 - t) + IKTargetFinal * t;
 
 	//MarkSpot(IKTargetFinal, FColor::Red);
@@ -389,6 +400,56 @@ void AIKArm::ReceiveGaitInput(FVector MovementDelta)
 {
 	m_bNeedNewTarget = true;
 	m_bMovementDelta = MovementDelta;
+}
+
+
+
+
+void AIKArm::Die()
+{
+	if (!bDead)
+	{
+		bDead = true;
+		TArray<USceneComponent*> Children;
+		UpperArm->GetChildrenComponents(false, Children);
+		for (auto Child : Children)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, Child->GetFName().GetPlainNameString());
+			UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Child);
+			if (Mesh)
+			{
+				Mesh->SetSimulatePhysics(true);
+				Mesh->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+			}
+		}
+		LowerArm->GetChildrenComponents(false, Children);
+		for (auto Child : Children)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, Child->GetFName().GetPlainNameString());
+			UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Child);
+			if (Mesh)
+			{
+				Mesh->SetSimulatePhysics(true);
+				Mesh->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+			}
+		}
+
+		// This one obliterates every piece
+		//TArray<UStaticMeshComponent*> StaticMeshes;
+		//GetComponents<UStaticMeshComponent>(StaticMeshes, true);
+		//for (auto Mesh : StaticMeshes)
+		//{
+		//	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Killing a leg mesh"));
+		//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, Mesh->GetFName().GetPlainNameString());
+		//	Mesh->SetSimulatePhysics(true);
+		//	Mesh->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+		//	if(Mesh->IsSimulatingPhysics())
+		//		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Killed it"));
+		//	else
+		//		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("no kill..."));
+		//
+		//}
+	}
 }
 
 

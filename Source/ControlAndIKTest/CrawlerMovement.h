@@ -42,6 +42,7 @@ class CONTROLANDIKTEST_API UCrawlerMovement : public UPawnMovementComponent
 
 
 public:
+	bool bShouldUpdate;
 
 #pragma region Surface
 	/** Maximum velocity magnitude allowed for the controlled Pawn on a surface. */

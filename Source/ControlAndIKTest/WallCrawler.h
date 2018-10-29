@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HealthInterface.h"
+
 #include "GameFramework/Pawn.h"
 #include "CrawlerMovement.h"
 #include "CrawlerGaitControl.h"
@@ -13,7 +15,7 @@ class USphereComponent;
 
 
 UCLASS()
-class CONTROLANDIKTEST_API AWallCrawler : public APawn
+class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface
 {
 	GENERATED_BODY()
 
@@ -25,9 +27,6 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 
-	UPROPERTY(EditAnywhere, Category = Camera)
-	float YawFactor;
-
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
@@ -37,8 +36,11 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn
 
 	UPROPERTY(EditAnywhere)
 	UCrawlerGaitControl* CrawlerGaitControl;
+	
 
 public:
+
+
 	// Sets default values for this pawn's properties
 	AWallCrawler();
 
@@ -48,6 +50,38 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+#pragma region Health
+
+public:
+	/** Health interface functions */
+	virtual float GetHealth_Implementation() override;
+	virtual void UpdateHealth_Implementation(float Delta) override;	
+	virtual bool IsDead_Implementation() override;
+	virtual void Die_Implementation() override;
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Health)
+	TArray<UStaticMeshComponent*> RagdollMeshes;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Health)
+	FName RagdollTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
+	float MaxHealth;
+	float CurrentHealth;
+
+	bool bDead;
+
+#pragma endregion Health
+
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+
+#pragma region Input
+
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseTurnRate;
@@ -56,12 +90,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
 
-
-
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	/** Assists with yaw turning to make it less sluggish */
+	UPROPERTY(EditAnywhere, Category = Camera)
+	float YawFactor;
 
 	void CollectForwardInput(float Value);
 	void CollectRightInput(float Value);
@@ -74,8 +105,6 @@ protected:
 	void RollReleased();
 	
 	void FlushInput();
-
-
 
 	/**
 	* Called via input to turn at a given rate.
@@ -92,6 +121,7 @@ protected:
 	float LocalPitch;
 	float LocalYaw;
 
+#pragma endregion Input
 
 	void MarkSpot(FVector Point, FColor Colour, float Duration);
 
