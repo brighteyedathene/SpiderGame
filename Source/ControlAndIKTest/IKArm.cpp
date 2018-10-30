@@ -80,6 +80,9 @@ void AIKArm::BeginPlay()
 	IKProbes.Add(FIKProbe(MidTarget, UnderTarget));
 	IKProbes.Add(FIKProbe(GroundTarget, UnderTarget));
 	IKProbes.Add(FIKProbe(GroundTarget, OffAxisTargetA));
+
+
+
 }
 
 
@@ -403,8 +406,6 @@ void AIKArm::ReceiveGaitInput(FVector MovementDelta)
 }
 
 
-
-
 void AIKArm::Die()
 {
 	if (!bDead)
@@ -414,7 +415,7 @@ void AIKArm::Die()
 		UpperArm->GetChildrenComponents(false, Children);
 		for (auto Child : Children)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, Child->GetFName().GetPlainNameString());
+			//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, Child->GetFName().GetPlainNameString());
 			UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Child);
 			if (Mesh)
 			{
@@ -425,7 +426,7 @@ void AIKArm::Die()
 		LowerArm->GetChildrenComponents(false, Children);
 		for (auto Child : Children)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, Child->GetFName().GetPlainNameString());
+			//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, Child->GetFName().GetPlainNameString());
 			UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Child);
 			if (Mesh)
 			{

@@ -191,7 +191,7 @@ void AWallCrawler::Die_Implementation()
 
 		for (auto Leg : CrawlerGaitControl->Legs)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("About to kill a leg"));
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("About to kill a leg"));
 			Leg->Die();
 			//Leg->DetachRootComponentFromParent();
 		}
@@ -199,7 +199,7 @@ void AWallCrawler::Die_Implementation()
 		CrawlerMovement->bShouldUpdate = false;
 
 		//GetCom
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("UWAAA!<dead>"));
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 	}
 }
 #pragma endregion Health
@@ -254,7 +254,15 @@ void AWallCrawler::JumpReleased()
 void AWallCrawler::RollPressed()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll pressed"));
-	CrawlerMovement->StartRoll();
+	if (CrawlerMovement->bCanRoll)
+		CrawlerMovement->StartRoll();
+	else
+	{
+		if (!bDead)
+			Die_Implementation();
+		else
+			Reset();
+	}
 }
 void AWallCrawler::RollReleased()
 {
