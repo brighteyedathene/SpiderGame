@@ -9,6 +9,8 @@
 UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bShouldUpdate = true;
+
 	MaxSpeedOnSurface = 1200.f;
 	Acceleration = 4000.f;
 	Deceleration = 8000.f;
@@ -69,7 +71,7 @@ void UCrawlerMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	
-	if (!PawnOwner || !UpdatedComponent)
+	if (!bShouldUpdate || !PawnOwner || !UpdatedComponent)
 	{
 		return;
 	}
@@ -143,7 +145,6 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
-
 		// Update the position and rotation wrt the MobileTargetActor's movement since last frame
 		{
 			FVector LatchPointDiff = MobileTargetActor->GetActorLocation() - LatchPoint;

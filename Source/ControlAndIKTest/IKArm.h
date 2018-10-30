@@ -127,7 +127,7 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	bool IKTargetInTransit;
 
 	UPROPERTY(EditAnywhere, Category = IK)
-	float IKTargetTransitionDuration;
+	float IKTargetTransitionSpeed;
 	float m_IKTargetTransitionTimer;
 
 	/** Pointer to track moving IKTargets
@@ -150,7 +150,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = IK)
 	int GaitStepIndex;
-
 
 
 protected:
@@ -195,4 +194,7 @@ public:
 	FVector GetIKTargetFinal() { return IKTargetFinal; }
 
 	EIKLimbType GetLimbType() { return LimbType; }
+
+	void Die();
+	bool bDead;
 };
