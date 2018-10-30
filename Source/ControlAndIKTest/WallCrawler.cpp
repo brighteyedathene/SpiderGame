@@ -72,20 +72,6 @@ void AWallCrawler::BeginPlay()
 	Super::BeginPlay();
 
 	CurrentHealth = MaxHealth;
-
-	// Get the ragdoll sections
-	TArray<UStaticMeshComponent*> StaticMeshes;
-	GetComponents<UStaticMeshComponent>(StaticMeshes);
-	for (auto Mesh : StaticMeshes)
-	{
-
-		if (Mesh->GetFName() == RagdollTag)
-		{
-			RagdollMeshes.Add(Mesh);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Added!"));
-		}
-	}
-	
 }
 
 // Called every frame
@@ -188,12 +174,9 @@ void AWallCrawler::Die_Implementation()
 		MySphereComponent->SetSimulatePhysics(false); // everything except the root
 		MySphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-
 		for (auto Leg : CrawlerGaitControl->Legs)
 		{
-			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("About to kill a leg"));
 			Leg->Die();
-			//Leg->DetachRootComponentFromParent();
 		}
 
 		CrawlerMovement->bShouldUpdate = false;
@@ -253,7 +236,6 @@ void AWallCrawler::JumpReleased()
 }
 void AWallCrawler::RollPressed()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll pressed"));
 	if (CrawlerMovement->bCanRoll)
 		CrawlerMovement->StartRoll();
 	else
@@ -266,7 +248,6 @@ void AWallCrawler::RollPressed()
 }
 void AWallCrawler::RollReleased()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Roll released"));
 	CrawlerMovement->EndRoll();
 }
 #pragma endregion Input
