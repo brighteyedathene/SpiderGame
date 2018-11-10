@@ -186,9 +186,8 @@ public:
 
 	
 	/** Placeholder until camera movement is rebuilt */
-	FQuat CameraRotation;
-	float CameraRelativePitch;
-	void SetCameraRotation(FQuat Rotation, float RelativePitch);
+	FVector m_ViewForward;
+	void SetViewForward(FVector Direction);
 	
 
 protected:

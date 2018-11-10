@@ -59,8 +59,8 @@ void UCrawlerGaitControl::UpdateGait(FVector MovementDelta)
 			if (Leg->GaitStepIndex == CurrentStep)
 			{
 				Leg->ReceiveGaitInput(MovementDelta);
-				if(Leg->SHOW_DEBUG_INFO)
-					MarkSpot(Leg->GetIKTargetFinal(), ((CurrentStep==0) ? FColor::Yellow : FColor::Green));
+				//if(Leg->SHOW_DEBUG_INFO)
+				//	MarkSpot(Leg->GetIKTargetFinal(), ((CurrentStep==0) ? FColor::Yellow : FColor::Green));
 			}
 		}
 

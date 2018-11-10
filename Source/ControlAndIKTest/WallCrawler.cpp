@@ -5,6 +5,9 @@
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Components/SphereComponent.h"
+
+#include "Human.h"
+
 #include "DrawDebugHelpers.h"
 
 
@@ -38,6 +41,11 @@ AWallCrawler::AWallCrawler()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false; 
 
+	BiteRayStart = CreateDefaultSubobject<USceneComponent>(TEXT("BiteRayStart"));
+	BiteRayStart->SetupAttachment(RootComponent);
+	BiteRayLength = 30.f;
+
+
 	YawFactor = 6.0f;
 
 	MaxHealth = 100.f;
@@ -64,6 +72,10 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAction("Roll", IE_Pressed, this, &AWallCrawler::RollPressed);
 	PlayerInputComponent->BindAction("Roll", IE_Released, this, &AWallCrawler::RollReleased);
 
+	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &AWallCrawler::Bite);
+
+	PlayerInputComponent->BindAction("ChangeCameraMode", IE_Pressed, this, &AWallCrawler::CycleCameraModes);
+
 }
 
 // Called when the game starts or when spawned
@@ -79,48 +91,34 @@ void AWallCrawler::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// Rotation control...
-	LocalPitch += InputPitch;
-	LocalYaw += InputYaw;
-	if (LocalPitch > 89.0f)
-		LocalPitch = 89.0f;
-	if (LocalPitch < -89.0f)
-		LocalPitch = -89.0f;
+	// Find out what camera we're using
+	//AActor* CurrentCamOwner = GEngine->GetFirstLocalPlayerController(GetWorld())->PlayerCameraManager->GetViewTarget();
+	//if (CurrentCamOwner == FollowCamera->GetOwner())
+	//{
+	//	UpdateCameraFollow();
+	//	MoveStrafe(CurrentCamOwner->GetActorQuat());
+	//}
+	//else
+	//{
+	//	UpdateCameraFixed();
+	//	MoveRotate(CurrentCamOwner->GetActorQuat());
+	//}
 
-	if (LocalYaw > 360.0f)
-		LocalYaw -= 360.0f;
-	if (LocalYaw < 0.0f)
-		LocalYaw += 360.0f;
 
-	FRotator CameraRotation = FRotator(-LocalPitch, InputYaw * YawFactor, 0);
-	CameraBoom->SetRelativeRotation(CameraRotation);
-
-	if (bDead)
+	switch (CameraMode)
 	{
-		InputPitch = 0;
-		InputForward = 0;
-		InputRight = 0;
-		return;
+	case ECameraMode::Follow:
+		UpdateCameraFollow();
+		MoveStrafe(CameraBoom->GetComponentQuat());
+		break;
+
+	case ECameraMode::Orbit:
+		UpdateCameraOrbit();
+		MoveRotate(CameraBoom->GetComponentQuat());
+		break;
+
 	}
 
-	// Movement control...
-	// - This involves calculating camera forward/right 
-	// - and projecting it onto the current surface (given by the RootComponent orientation or world up)
-	const FRotator Rotation = CameraBoom->GetComponentRotation();
-	const FVector CameraForward = FRotationMatrix(Rotation).GetUnitAxis(EAxis::X);
-	const FVector CameraRight = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Y);
-
-	// TODO change this so that camera movement isn't tied to rotation speed in the movement component!
-	CrawlerMovement->SetCameraRotation(CameraBoom->GetComponentQuat(), LocalPitch); 
-
-	FVector FDirection = FVector::VectorPlaneProject(CameraForward, RootComponent->GetUpVector()).GetSafeNormal();
-	FVector RDirection = FVector::VectorPlaneProject(CameraRight, RootComponent->GetUpVector()).GetSafeNormal();
-
-	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
-	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
-	MovementDirection.Normalize();
-
-	AddMovementInput(MovementDirection, MovementIntensity);
 
 	if (CrawlerMovement->IsCrawling())
 	{
@@ -135,6 +133,172 @@ void AWallCrawler::Tick(float DeltaTime)
 	FlushInput();
 
 }
+
+
+#pragma region Camera
+
+
+void AWallCrawler::CycleCameraModes()
+{
+	if (CameraMode == ECameraMode::Follow)
+	{
+		CameraMode = ECameraMode::Orbit;
+		//FQuat OldRotation = CameraBoom->GetRelativeRotationFromWorld(FQuat::Identity);
+		FRotator OldRotator = CameraBoom->GetComponentRotation();
+		LocalPitch = OldRotator.Pitch;
+		LocalYaw = OldRotator.Yaw;
+	}
+	else
+	{
+		CameraMode = ECameraMode::Follow;
+		LocalPitch = 0;
+		LocalYaw = 0;
+	}
+}
+
+void AWallCrawler::UpdateCameraFollow()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using my camera!"));
+
+	// Rotation control...
+	LocalPitch += InputPitch;
+	LocalYaw += InputYaw;
+	if (LocalPitch > 89.0f)
+		LocalPitch = 89.0f;
+	if (LocalPitch < -89.0f)
+		LocalPitch = -89.0f;
+
+	if (LocalYaw > 360.0f)
+		LocalYaw -= 360.0f;
+	if (LocalYaw < 0.0f)
+		LocalYaw += 360.0f;
+
+
+	if (bDead)
+	{
+		FRotator CameraRotation = FRotator(-LocalPitch, LocalYaw, 0);
+		CameraBoom->SetRelativeRotation(CameraRotation);
+		FlushInput();
+		return;
+	}
+	else
+	{
+		FRotator CameraRotation = FRotator(-LocalPitch, InputYaw * YawFactor, 0);
+		CameraBoom->SetRelativeRotation(CameraRotation);
+	}
+
+}
+
+void AWallCrawler::UpdateCameraOrbit()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using my camera!"));
+
+	// Rotation control...
+	LocalPitch += InputPitch;
+	LocalYaw += InputYaw;
+	if (LocalPitch > 89.0f)
+		LocalPitch = 89.0f;
+	if (LocalPitch < -89.0f)
+		LocalPitch = -89.0f;
+
+	if (LocalYaw > 360.0f)
+		LocalYaw -= 360.0f;
+	if (LocalYaw < 0.0f)
+		LocalYaw += 360.0f;
+
+
+	if (bDead)
+	{
+		FRotator CameraRotation = FRotator(-LocalPitch, LocalYaw, 0);
+		CameraBoom->SetWorldRotation(CameraRotation);
+		FlushInput();
+		return;
+	}
+	else
+	{
+		FRotator CameraRotation = FRotator(-LocalPitch, LocalYaw, 0);
+		CameraBoom->SetWorldRotation(CameraRotation);
+	}
+
+}
+
+void AWallCrawler::UpdateCameraFixed()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using another camera..."));
+}
+
+
+void AWallCrawler::MoveStrafe(const FQuat & CameraQuat)
+{
+	FVector ViewForward = CameraBoom->GetComponentQuat().GetForwardVector() + CameraBoom->GetComponentQuat().GetUpVector() * (LocalPitch / 90);
+	//FVector ViewForward = CameraWorldRotation.Quaternion().GetForwardVector() + CameraWorldRotation.Quaternion().GetUpVector() * (CameraBoom->RelativeRotation.Pitch / 90);
+	CrawlerMovement->SetViewForward(ViewForward);
+
+
+	const FQuat CamQuat = CameraBoom->GetComponentQuat();
+	const FVector CameraForward = FRotationMatrix::Make(CamQuat).GetUnitAxis(EAxis::X);
+	const FVector CameraRight = FRotationMatrix::Make(CamQuat).GetUnitAxis(EAxis::Y);
+
+	FVector FDirection = FVector::VectorPlaneProject(CameraForward, RootComponent->GetUpVector()).GetSafeNormal();
+	FVector RDirection = FVector::VectorPlaneProject(CameraRight, RootComponent->GetUpVector()).GetSafeNormal();
+
+	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
+	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
+	MovementDirection.Normalize();
+
+	AddMovementInput(MovementDirection, MovementIntensity);
+
+}
+
+void AWallCrawler::MoveRotate(const FQuat & CameraQuat)
+{
+	const FVector CameraForward = FRotationMatrix::Make(CameraQuat).GetUnitAxis(EAxis::X);
+	const FVector CameraRight = FRotationMatrix::Make(CameraQuat).GetUnitAxis(EAxis::Y);
+	const FVector CameraUp = FRotationMatrix::Make(CameraQuat).GetUnitAxis(EAxis::Z);
+
+	FVector FProjection = FVector::VectorPlaneProject(CameraForward, RootComponent->GetUpVector()).GetSafeNormal();
+	FVector RProjection = FVector::VectorPlaneProject(CameraRight, RootComponent->GetUpVector()).GetSafeNormal();
+	FVector UProjection = FVector::VectorPlaneProject(CameraUp, RootComponent->GetUpVector()).GetSafeNormal();
+
+
+	float ModelUpDotCameraForward = FVector::DotProduct(RootComponent->GetUpVector(), CameraForward);
+	float ModelUpDotCameraRight = FVector::DotProduct(RootComponent->GetUpVector(), CameraRight);
+	float ModelUpDotCameraUp = FVector::DotProduct(RootComponent->GetUpVector(), CameraUp);
+
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, 
+	//	FString::Printf(TEXT("ModelUp Dot F, R, U = %f, %f, %f"), ModelUpDotCameraForward, ModelUpDotCameraRight,  ModelUpDotCameraUp));
+
+
+
+	float ForwardModifier = fmaxf(0, ModelUpDotCameraUp);
+	FVector FDirection = (ForwardModifier * FProjection + (1 - ForwardModifier) * UProjection).GetSafeNormal();
+	float RightModifier = fmaxf(0, ModelUpDotCameraForward);
+	FVector RDirection = (RightModifier * UProjection + (1 - RightModifier) * RProjection).GetSafeNormal();
+	//if (ModelUpDotCameraUp < 0)
+	//{
+	//	FDirection = UDirection;
+	//}
+
+	FVector R = RootComponent->GetComponentLocation();
+	MarkLine(R, R + FDirection * 15, FColor::Red, 0);
+	MarkLine(R, R + RDirection * 15, FColor::Green, 0);
+	RDirection = FVector::VectorPlaneProject(FVector::CrossProduct(CameraUp, FDirection), RootComponent->GetUpVector()).GetSafeNormal() * FMath::Sign(ModelUpDotCameraUp);
+
+	MarkLine(R, R + RDirection * 15, FColor::Yellow, 0);
+
+	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
+	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
+	MovementDirection.Normalize();
+
+	AddMovementInput(MovementDirection, MovementIntensity);
+
+
+	FVector ViewForward = MovementIntensity * MovementDirection + (1 - MovementIntensity) * RootComponent->GetForwardVector();
+	CrawlerMovement->SetViewForward(ViewForward);
+}
+
+#pragma endregion Camera
+
 
 
 #pragma region Health
@@ -186,6 +350,34 @@ void AWallCrawler::Die_Implementation()
 	}
 }
 #pragma endregion Health
+
+
+
+#pragma region Attack
+
+void AWallCrawler::Bite()
+{
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this);
+
+	FHitResult Hit;
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		BiteRayStart->GetComponentLocation(),
+		BiteRayStart->GetComponentLocation() - RootComponent->GetUpVector() * BiteRayLength,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		AHuman* Human = Cast<AHuman>(Hit.Actor.Get());
+		if (Human)
+		{
+			Human->Die_Implementation();
+		}
+	}
+}
+
+#pragma endregion Attack
+
 
 
 #pragma region Input
@@ -252,17 +444,26 @@ void AWallCrawler::RollReleased()
 }
 #pragma endregion Input
 
+
+
 void AWallCrawler::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
-	float length = 10.f;
+	bool IsPersistant = Duration > 0;
+	float length = 1.f;
 	for (int x = -1; x <= 1; x++)
 	{
 		for (int y = -1; y <= 1; y++)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, true, Duration, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 0.1f);
 			}
 		}
 	}
+}
+
+void AWallCrawler::MarkLine(FVector Start, FVector End, FColor Colour, float Duration)
+{
+	bool IsPersistant = Duration > 0;
+	DrawDebugLine(GetWorld(), Start, End, Colour, IsPersistant, Duration, 0, 0.1f);
 }

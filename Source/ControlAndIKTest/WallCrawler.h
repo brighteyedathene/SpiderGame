@@ -14,14 +14,21 @@
 class USphereComponent;
 
 
+UENUM()
+enum class ECameraMode : uint8
+{
+	Follow,
+	Orbit,
+	Fixed
+};
+
 UCLASS()
 class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface
 {
 	GENERATED_BODY()
 
 
-	UPROPERTY(EditAnywhere)
-	USphereComponent* MySphereComponent;
+
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -39,6 +46,8 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface
 	
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	USphereComponent* MySphereComponent;
 
 
 	// Sets default values for this pawn's properties
@@ -49,6 +58,31 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+
+#pragma region Camera
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	ECameraMode CameraMode;
+
+	UPROPERTY(Editanywhere, BlueprintReadWrite, Category = Camera)
+	TArray<AActor*> FixedCameras;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	int FixedCameraIndex;
+
+	void UpdateCameraFollow();
+	void UpdateCameraOrbit();
+	void UpdateCameraFixed();
+
+	void CycleCameraModes();
+
+	void MoveStrafe(const FQuat & CameraQuat);
+	void MoveRotate(const FQuat & CameraQuat);
+
+#pragma endregion Camera
+
 
 #pragma region Health
 
@@ -73,6 +107,23 @@ protected:
 	bool bDead;
 
 #pragma endregion Health
+
+#pragma region Attack
+
+protected:
+
+	UPROPERTY(EditAnywhere, Category = Attack)
+	USceneComponent* BiteRayStart;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
+	float BiteRayLength;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
+	float BiteDamage;
+
+	void Bite();
+
+#pragma endregion Attack
 
 
 protected:
@@ -124,5 +175,6 @@ protected:
 #pragma endregion Input
 
 	void MarkSpot(FVector Point, FColor Colour, float Duration);
+	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 
 };
