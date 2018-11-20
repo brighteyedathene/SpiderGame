@@ -1,5 +1,9 @@
 Check out these videos to see it in action!
 
+Gameplay test:
+
+[![Gameplay](http://img.youtube.com/vi/kz6_UiAdvHk/0.jpg)](https://www.youtube.com/watch?v=kz6_UiAdvHk "Gameplay (watch it on youtube)")
+
 Added jumping:
 
 [![Jumping](http://img.youtube.com/vi/k6Jb2ZKCpKc/0.jpg)](https://www.youtube.com/watch?v=k6Jb2ZKCpKc "Jumping (watch it on youtube)")
