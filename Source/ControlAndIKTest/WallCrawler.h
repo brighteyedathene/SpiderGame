@@ -72,6 +72,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 	int FixedCameraIndex;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float MaxOrbitDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float MinOrbitDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float ZoomSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float FollowCameraDistance;
+
+
+
+	//void Zoom(float Value); // Handled in blueprint!! Can't get TargetArmLength here
+
 	void UpdateCameraFollow();
 	void UpdateCameraOrbit();
 	void UpdateCameraFixed();

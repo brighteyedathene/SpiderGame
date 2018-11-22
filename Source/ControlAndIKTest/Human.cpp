@@ -3,9 +3,13 @@
 #include "Human.h"
 #include "HumanMovement.h"
 #include "HumanGaitControl.h"
+#include "HumanSenseComponent.h"
+
 
 #include "Runtime/Engine/Classes/Engine/TargetPoint.h"
 #include "Runtime/Engine/Classes/Components/CapsuleComponent.h"
+
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 AHuman::AHuman()
@@ -18,6 +22,9 @@ AHuman::AHuman()
 	HumanMovement = CreateDefaultSubobject<UHumanMovement>("HumanMovement");
 	
 	HumanGaitControl = CreateDefaultSubobject<UHumanGaitControl>("HumanGaitControl");
+
+	HumanSense = CreateDefaultSubobject<UHumanSenseComponent>("HumanSense");
+
 }
 
 // Called when the game starts or when spawned
@@ -29,15 +36,52 @@ void AHuman::BeginPlay()
 	UActorComponent* PossibleSkeletalMesh = GetComponentByClass(USkeletalMeshComponent::StaticClass());
 	SkeletalMesh = Cast<USkeletalMeshComponent>(PossibleSkeletalMesh);
 
-	//UActorComponent* PossibleCollider = GetComponentByClass(UCapsuleComponent::StaticClass());
-	//HumanCollider = Cast<UCapsuleComponent>(PossibleCollider);
-	//if (HumanCollider)
-	//{
-	//	RootComponent = HumanCollider;
-	//	HumanMovement->SetUpdatedComponent(HumanCollider);
-	//	GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::White, FString::Printf(TEXT("I found a collider")));
-	//
-	//}
+
+	// Populate StrikeBoxes array and attach them to their bones on the skeletal mesh
+	TArray<UActorComponent*> StrikeBoxActorComponents = GetComponentsByClass(UStrikeBox::StaticClass());
+	for (auto & StrikeBoxActorComponent : StrikeBoxActorComponents)
+	{
+		UStrikeBox* StrikeBox = Cast<UStrikeBox>(StrikeBoxActorComponent);
+		if (StrikeBox)
+		{
+			StrikeBoxes.Add(StrikeBox);
+
+			if (!StrikeBox->SocketName.IsEqual(FName("None")))
+			{
+				if (!StrikeBox->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepWorldTransform, StrikeBox->SocketName))
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString("FAILED to attach StrikeBox to ") + StrikeBox->SocketName.ToString());
+				}
+			}
+			else
+			{
+				if (!StrikeBox->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepWorldTransform, UStrikeBox::SocketMap[StrikeBox->StrikePosition]))
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString("FAILED to attach StrikeBox to ") + UStrikeBox::SocketMap[StrikeBox->StrikePosition].ToString());
+				}
+			}
+			 
+		}
+	}
+	// Sort strike boxes according to priority
+	StrikeBoxes.Sort(UStrikeBox::StrikeBoxCompare);
+
+	// Populate the StrikeLimbMap and attach to skeleton sockets
+	TArray<UActorComponent*> StrikeLimbActorComponents = GetComponentsByClass(UStrikeLimb::StaticClass());
+	for (auto & StrikeLimbActorComponent : StrikeLimbActorComponents)
+	{
+		UStrikeLimb* StrikeLimb = Cast<UStrikeLimb>(StrikeLimbActorComponent);
+		if (StrikeLimb)
+		{
+			StrikeLimbMap.Add(StrikeLimb->LimbType, StrikeLimb);
+			
+			if (!StrikeLimb->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepWorldTransform, UStrikeLimb::SocketMap[StrikeLimb->LimbType]))
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString("FAILED to attach StrikeLimb to ") + UStrikeLimb::SocketMap[StrikeLimb->LimbType].ToString());
+			}
+		}
+	}
+
 
 	CurrentHealth = MaxHealth;
 }
@@ -47,7 +91,15 @@ void AHuman::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	HumanGaitControl->UpdateGait(HumanMovement->GetVelocity(), HumanMovement->GetVelocity().Size() / HumanMovement->MaxSpeed);
+	if (!IsDead_Implementation() && !bStrikeLockedIn)
+	{
+		HumanGaitControl->UpdateGait(HumanMovement->GetVelocity(), HumanMovement->GetVelocity().Size() / HumanMovement->MaxSpeed);
+	}
+
+	if (IsStriking())
+	{
+		ContinueStrike(DeltaTime);
+	}
 }
 
 // Called to bind functionality to input
@@ -58,7 +110,6 @@ void AHuman::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	// Controls for testing
 	PlayerInputComponent->BindAxis("MoveForward", this, &AHuman::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AHuman::MoveRight);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AHuman::MoveToCentre);
 }
 
 
@@ -70,11 +121,6 @@ void AHuman::MoveForward(float value)
 void AHuman::MoveRight(float value)
 {
 	AddMovementInput(FVector::RightVector, value);
-}
-
-void AHuman::MoveToCentre()
-{
-
 }
 
 
@@ -110,9 +156,17 @@ void AHuman::Die_Implementation()
 		{
 			HumanCollider->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
+		if (HumanSense)
+		{
+			HumanSense->Disable();
+		}
 		if (SkeletalMesh)
 		{
 			SkeletalMesh->SetSimulatePhysics(true);
+		}
+		for (auto & StrikeBox : StrikeBoxes)
+		{
+			StrikeBox->Disable();
 		}
 
 		//GetCom
@@ -121,6 +175,82 @@ void AHuman::Die_Implementation()
 }
 #pragma endregion Health
 
+
+
+#pragma region Attack
+
+UStrikeBox* AHuman::CheckStrikeBoxes()
+{
+	for (auto & StrikeBox : StrikeBoxes)
+	{
+		if (StrikeBox->CrawlerInside)
+		{
+			return StrikeBox;
+		}
+	}
+	return nullptr;
+}
+
+
+void AHuman::BeginStrike(FVector Target)
+{
+	StrikeTarget = Target;
+
+	if (!StrikeLimbMap.Contains(ActiveStrikeBox->LimbType))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Couldn't find the right limb to strike with!"));
+		return;
+	}
+	ActiveStrikeLimb = StrikeLimbMap[ActiveStrikeBox->LimbType];
+	ActiveStrikeLimb->BeginStrike();
+
+	StrikeTimer = 0;
+
+	bStrikeLockedIn = true;
+}
+
+void AHuman::ContinueStrike(float DeltaTime)
+{
+	DrawDebugLine(GetWorld(), ActiveStrikeLimb->GetComponentLocation(), StrikeTarget, FColor::Red, false, -1, 0, 0.1f);
+
+	StrikeTimer += DeltaTime;
+
+	if (StrikeTimer > ActiveStrikeLimb->StrikeDuration)
+	{
+		ActiveStrikeLimb->EndStrike();
+		bStrikeLockedIn = false;
+		ActiveStrikeLimb = nullptr;
+	}
+}
+
+
+float AHuman::GetStrikeIKWeight()
+{
+	if (ActiveStrikeLimb && ActiveStrikeLimb->StrikeDuration > 0)
+	{
+		float t = fminf(1.f, StrikeTimer / ActiveStrikeLimb->StrikeDuration);
+		return FMath::InterpEaseIn(0.f, 1.f, t, 2.f);
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("StrikeDuration was 0"));
+		return 1.f;
+	}
+}
+
+ELimb AHuman::GetStrikeLimbType()
+{
+	if (ActiveStrikeLimb)
+	{
+		return ActiveStrikeLimb->LimbType;
+	}
+	else
+	{
+		return ELimb::None;
+	}
+}
+
+#pragma endregion Attack
 
 
 #pragma region Gait
@@ -140,20 +270,20 @@ float AHuman::GetGaitFraction()
 	//
 
 
-	HumanGaitControl->MarkLine(
-		RootComponent->GetComponentLocation() + (FVector::UpVector * 100),
-		RootComponent->GetComponentLocation() + (FVector::UpVector * 100) + (FVector::UpVector * 100 * HumanGaitControl->GaitFraction),
-		FColor::Red, 0);
-
-	HumanGaitControl->MarkLine(
-		RootComponent->GetComponentLocation() + (FVector::UpVector * 100) + (RootComponent->GetRightVector() * 10),
-		RootComponent->GetComponentLocation() + (FVector::UpVector * 100) + (RootComponent->GetRightVector() * 10) + (FVector::UpVector * 100 * HumanGaitControl->RightFootIKBlend),
-		FColor::Orange, 0);
-
-	HumanGaitControl->MarkLine(
-		RootComponent->GetComponentLocation() + (FVector::UpVector * 100) - (RootComponent->GetRightVector() * 10),
-		RootComponent->GetComponentLocation() + (FVector::UpVector * 100) - (RootComponent->GetRightVector() * 10) + (FVector::UpVector * 100 * HumanGaitControl->LeftFootIKBlend),
-		FColor::Blue, 0);
+	//HumanGaitControl->MarkLine(
+	//	RootComponent->GetComponentLocation() + (FVector::UpVector * 100),
+	//	RootComponent->GetComponentLocation() + (FVector::UpVector * 100) + (FVector::UpVector * 100 * HumanGaitControl->GaitFraction),
+	//	FColor::Red, 0);
+	//
+	//HumanGaitControl->MarkLine(
+	//	RootComponent->GetComponentLocation() + (FVector::UpVector * 100) + (RootComponent->GetRightVector() * 10),
+	//	RootComponent->GetComponentLocation() + (FVector::UpVector * 100) + (RootComponent->GetRightVector() * 10) + (FVector::UpVector * 100 * HumanGaitControl->RightFootIKBlend),
+	//	FColor::Orange, 0);
+	//
+	//HumanGaitControl->MarkLine(
+	//	RootComponent->GetComponentLocation() + (FVector::UpVector * 100) - (RootComponent->GetRightVector() * 10),
+	//	RootComponent->GetComponentLocation() + (FVector::UpVector * 100) - (RootComponent->GetRightVector() * 10) + (FVector::UpVector * 100 * HumanGaitControl->LeftFootIKBlend),
+	//	FColor::Blue, 0);
 
 
 

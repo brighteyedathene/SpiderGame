@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "HealthInterface.h"
+#include "StrikeBox.h"
 
 #include "Human.generated.h"
 
 class UHumanMovement;
 class UHumanGaitControl;
+class UHumanSenseComponent;
 class ATargetPoint;
 class UBehaviorTree;
 class UCapsuleComponent;
@@ -29,13 +31,15 @@ public:
 	UPROPERTY(EditAnywhere)
 	UHumanGaitControl* HumanGaitControl;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UHumanSenseComponent* HumanSense;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	void MoveForward(float value);
 	void MoveRight(float value);
-	void MoveToCentre();
 
 public:	
 	// Called every frame
@@ -46,9 +50,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "AI")
 	UBehaviorTree* BehaviorTree;
-	
-	UPROPERTY(EditAnywhere, Category = "AI")
-	ATargetPoint* CentrePoint;
 
 
 #pragma region Health
@@ -75,6 +76,51 @@ protected:
 
 #pragma endregion Health
 
+
+#pragma region Attack
+
+public:
+
+	TArray<UStrikeBox*> StrikeBoxes;
+	TMap<ELimb, UStrikeLimb*> StrikeLimbMap;
+
+	UFUNCTION(BlueprintCallable, Category = Senses)
+	UStrikeBox* CheckStrikeBoxes();
+
+	UPROPERTY(Transient, BlueprintReadWrite)
+	float StrikeTimer;
+
+	FVector StrikeTarget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
+	EStrikePosition StrikePosition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
+	UStrikeBox* ActiveStrikeBox;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
+	UStrikeLimb* ActiveStrikeLimb;
+
+	UPROPERTY(Transient, BlueprintReadWrite)
+	bool bStrikeLockedIn;
+
+	void BeginStrike(FVector Target);
+
+	void ContinueStrike(float DeltaTime);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	bool IsStriking() { return bStrikeLockedIn; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	FVector GetStrikeTarget() { return StrikeTarget; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	float GetStrikeIKWeight();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	ELimb GetStrikeLimbType();
+
+#pragma endregion Attack
 
 
 #pragma region Gait

@@ -124,7 +124,7 @@ void AIKArm::Tick(float DeltaTime)
 		//	MarkSpot(IKTargetFinal, FColor::Green);
 		//
 		//}
-		//DebugDrawProbes();
+		DebugDrawProbes();
 		//DebugDrawArm();
 	}
 }
@@ -227,7 +227,7 @@ bool AIKArm::AttemptSolveIK()
 		{
 			if (SHOW_DEBUG_INFO)
 			{
-				MarkSpot(IKTargetFinal, FColor::Blue);
+				//MarkSpot(IKTargetFinal, FColor::Blue);
 			}
 
 			SolutionInvalid = true;
@@ -260,7 +260,7 @@ bool AIKArm::AttemptSolveIK()
 		LowerArmAngle = 0;
 		if (SHOW_DEBUG_INFO)
 		{
-			MarkSpot(IKTargetIntermediate, FColor::Cyan);
+			//MarkSpot(IKTargetIntermediate, FColor::Cyan);
 		}
 
 		SolutionInvalid = true;
@@ -297,8 +297,8 @@ FMatrix AIKArm::GetIKFrameRotationMatrix(FVector IKTarget)
 	float IKPinBlend = fmaxf(0, fminf(1, RelativeForward.X / IKPinBlendRange));
 	FVector Up = (IKPinBlend * IKPin->GetComponentLocation() + (1 - IKPinBlend) * UnderTargetIKPin->GetComponentLocation()) - IKRoot->GetComponentLocation();
 
-	if(SHOW_DEBUG_INFO)
-		MarkLine(IKRoot->GetComponentLocation(), IKRoot->GetComponentLocation() + Up, FColor::Green, 0);
+	//if(SHOW_DEBUG_INFO)
+	//	MarkLine(IKRoot->GetComponentLocation(), IKRoot->GetComponentLocation() + Up, FColor::Green, 0);
 
 	return FRotationMatrix::MakeFromXZ(Forward, Up);
 }

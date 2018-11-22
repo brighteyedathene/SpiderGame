@@ -8,6 +8,7 @@
 
 class UBehaviorTreeComponent;
 class ATargetPoint;
+class APointOfInterestSet;
 
 /**
  * 
@@ -17,22 +18,36 @@ class CONTROLANDIKTEST_API AHumanAIController : public AAIController
 {
 	GENERATED_BODY()
 
+public:
 	UBehaviorTreeComponent* BehaviorComp;
 	UBlackboardComponent* BlackboardComp;
-	
-
-
-	ATargetPoint* MyTestTargetPoint;
 
 	virtual void Possess(APawn* Pawn) override;
 
-
-public:
 	AHumanAIController();
 
 	FORCEINLINE UBlackboardComponent* GetBlackboardComp() const { return BlackboardComp; }
-	FORCEINLINE ATargetPoint* GetTargetPoint() { return MyTestTargetPoint; }
 	
-	UPROPERTY(EditDefaultsOnly, Category = "AI")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
 	FName LocationToGoKey;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName PointOfInterestKey;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName PointOfInterestDirectionKey;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName CrawlerKey;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName StrikePositionKey;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName StrikeTargetKey;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName StrikeProgressKey;
+
+	APointOfInterestSet* PointOfInterestSet;
 };

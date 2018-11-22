@@ -514,6 +514,12 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 						//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, Hit.BoneName.GetPlainNameString());
 						//UpdatedComponent->GetOwner()->AttachToActor(Hit.Actor.Get(), AttachmentRules);
 					}
+
+					//MarkLine(O, Hit.ImpactPoint, FColor::Red, 0);
+				}
+				else
+				{
+					//MarkLine(O, O + Ray * SurfaceRayLength, FColor::White, 0);
 				}
 			}
 		}
@@ -608,7 +614,7 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 
 	// Apply the rotation to RootComponent
 	FQuat RootQuat = UpdatedComponent->GetComponentQuat();
-	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t * GetWorld()->GetDeltaSeconds());
+	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, fminf(1, t * GetWorld()->GetDeltaSeconds()));
 	UpdatedComponent->SetRelativeRotation(FinalQuat);
 }
 

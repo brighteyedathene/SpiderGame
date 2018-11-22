@@ -42,6 +42,10 @@ public:
 	float TurnAcceleration;
 
 	float CurrentTurnSpeed;
+	
+	/* Fraction of MaxSpeed to use when moving backwards*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
+	float BackwardsSpeedMultiplier;
 
 	/**
 	* Setting affecting extra force applied when changing direction, making turns have less drift and become more responsive.
@@ -69,6 +73,9 @@ public:
 
 
 	FVector GetVelocity();
+
+	UPROPERTY(Transient)
+	bool bMovementDisabled;
 
 protected:
 

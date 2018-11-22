@@ -45,8 +45,11 @@ AWallCrawler::AWallCrawler()
 	BiteRayStart->SetupAttachment(RootComponent);
 	BiteRayLength = 30.f;
 
-
 	YawFactor = 6.0f;
+	MaxOrbitDistance = 200.f;
+	MinOrbitDistance = 0.0f;
+	ZoomSpeed = 0.05f;
+	FollowCameraDistance = 30.f;
 
 	MaxHealth = 100.f;
 }
@@ -75,6 +78,7 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &AWallCrawler::Bite);
 
 	PlayerInputComponent->BindAction("ChangeCameraMode", IE_Pressed, this, &AWallCrawler::CycleCameraModes);
+	//PlayerInputComponent->BindAxis("Zoom", this, &AWallCrawler::Zoom); // Handled in blueprint!!
 
 }
 
@@ -158,7 +162,7 @@ void AWallCrawler::CycleCameraModes()
 
 void AWallCrawler::UpdateCameraFollow()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using my camera!"));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using my camera!"));
 
 	// Rotation control...
 	LocalPitch += InputPitch;
@@ -191,7 +195,7 @@ void AWallCrawler::UpdateCameraFollow()
 
 void AWallCrawler::UpdateCameraOrbit()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using my camera!"));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using my camera!"));
 
 	// Rotation control...
 	LocalPitch += InputPitch;
@@ -224,7 +228,7 @@ void AWallCrawler::UpdateCameraOrbit()
 
 void AWallCrawler::UpdateCameraFixed()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using another camera..."));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using another camera..."));
 }
 
 
@@ -280,11 +284,11 @@ void AWallCrawler::MoveRotate(const FQuat & CameraQuat)
 	//}
 
 	FVector R = RootComponent->GetComponentLocation();
-	MarkLine(R, R + FDirection * 15, FColor::Red, 0);
-	MarkLine(R, R + RDirection * 15, FColor::Green, 0);
+	//MarkLine(R, R + FDirection * 15, FColor::Red, 0);
+	//MarkLine(R, R + RDirection * 15, FColor::Green, 0);
 	RDirection = FVector::VectorPlaneProject(FVector::CrossProduct(CameraUp, FDirection), RootComponent->GetUpVector()).GetSafeNormal() * FMath::Sign(ModelUpDotCameraUp);
 
-	MarkLine(R, R + RDirection * 15, FColor::Yellow, 0);
+	//MarkLine(R, R + RDirection * 15, FColor::Yellow, 0);
 
 	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
 	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;

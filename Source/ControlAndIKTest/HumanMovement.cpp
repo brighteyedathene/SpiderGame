@@ -12,6 +12,7 @@ UHumanMovement::UHumanMovement(const FObjectInitializer& ObjectInitializer)
 	Acceleration = 300.f;
 	Deceleration = 300.f;
 	MaxTurnSpeed = 180.f;
+	BackwardsSpeedMultiplier = 0.3f;
 	TurningBoost = 8.0f;
 	bPositionCorrected = false;
 
@@ -26,7 +27,7 @@ UHumanMovement::UHumanMovement(const FObjectInitializer& ObjectInitializer)
 
 void UHumanMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
-	if (ShouldSkipUpdate(DeltaTime))
+	if (ShouldSkipUpdate(DeltaTime) || bMovementDisabled)
 	{
 		return;
 	}
@@ -148,7 +149,7 @@ bool UHumanMovement::ResolvePenetrationImpl(const FVector& Adjustment, const FHi
 float UHumanMovement::GetMaxSpeed(FVector Direction)
 {
 	float HeadingDotDirecion = FVector::DotProduct(UpdatedComponent->GetForwardVector(), Direction);
-	return MaxSpeed * fmaxf(0.3, HeadingDotDirecion);
+	return MaxSpeed * fmaxf(BackwardsSpeedMultiplier, HeadingDotDirecion);
 }
 
 FVector UHumanMovement::GetVelocity()
@@ -191,13 +192,15 @@ void UHumanMovement::StickToGround()
 {
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(GetOwner());
+	ECollisionChannel TraceChannel = ECC_WorldStatic; // should be the 'Floor' channel
+
 
 	FVector Start = UpdatedComponent->GetComponentLocation() + FVector::UpVector * GroundRayStartOffset;
 	FVector End = Start - FVector::UpVector * GroundRayLength;
 	FVector FeetPosition = UpdatedComponent->GetComponentLocation() + FVector::UpVector * GroundRootOffset;
 
 	FHitResult Hit;
-	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, CollisionParameters))
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, TraceChannel, CollisionParameters))
 	{
 		DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, -1, 0, 0.1f);
 

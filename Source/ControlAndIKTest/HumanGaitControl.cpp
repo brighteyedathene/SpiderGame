@@ -52,14 +52,14 @@ void UHumanGaitControl::UpdateGait(FVector Velocity, float Intensity)
 		{
 			FVector StanceOffset = -NewRotation.GetRightVector() * StanceWidth;
 			LeftFoot = FTransform(NewRotation, NewPosition + StanceOffset);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("LEFT"));
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("LEFT"));
 			bLeftFootPlanted = false;
 		}
 		else
 		{
 			FVector StanceOffset = NewRotation.GetRightVector() * StanceWidth;
 			RightFoot = FTransform(NewRotation, NewPosition + StanceOffset);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Magenta, TEXT("RIGHT"));
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Magenta, TEXT("RIGHT"));
 			bLeftFootPlanted = true;
 		}
 	}
@@ -91,10 +91,10 @@ void UHumanGaitControl::UpdateGait(FVector Velocity, float Intensity)
 	// Update IK blend values
 	LeftFootIKBlend = (bLeftFootPlanted ? 1 - CurrentStepProgress : CurrentStepProgress);
 	RightFootIKBlend = (bLeftFootPlanted ? CurrentStepProgress : 1 - CurrentStepProgress);
-	LeftFootIKBlend *= LeftFootIKBlend;
-	RightFootIKBlend *= RightFootIKBlend;
+	LeftFootIKBlend *= 0;// LeftFootIKBlend;
+	RightFootIKBlend *= 0;// RightFootIKBlend;
 
-	DebugDrawFeet();
+	//DebugDrawFeet();
 }
 
 
