@@ -31,34 +31,33 @@ public:
 	// Sets default values for this component's properties
 	UStrikeBox();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	EStrikePosition StrikePosition;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	ELimb LimbType;
 
-	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = Strike)
+	UPROPERTY(Transient, BlueprintReadOnly)
 	bool CrawlerInside;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	FName SocketName;
 
 	/* Higher number means higher priority when choosing a pose */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	int Priority;
 
 	/* How quickly can this box detect a crawler? 0 means it never will. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
 	float Sensitivity;
 
-	// declare overlap begin function
-	UFUNCTION()
-	void OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	/* How quickly can this box detect a crawler? 0 means it never will. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	float StrikeDuration;
 
-	// declare overlap end function
-	UFUNCTION()
-	void OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
-
+	/* How quickly can this box detect a crawler? 0 means it never will. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	float CooldownDuration;
 
 protected:
 	// Called when the game starts
@@ -68,10 +67,18 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	// declare overlap begin function
+	UFUNCTION()
+	void OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	// declare overlap end function
+	UFUNCTION()
+	void OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 	void Disable();
 	
-	inline static bool StrikeBoxCompare(UStrikeBox& One, UStrikeBox& Two) { return One.Priority < Two.Priority; }
 
+	inline static bool StrikeBoxCompare(UStrikeBox& One, UStrikeBox& Two) { return One.Priority < Two.Priority; }
 
 	static TMap<EStrikePosition, FName> SocketMap;
 };

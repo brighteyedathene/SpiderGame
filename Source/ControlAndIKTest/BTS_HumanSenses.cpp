@@ -47,17 +47,15 @@ void UBTS_HumanSenses::TickNode(UBehaviorTreeComponent & OwnerComp, uint8 * Node
 
 
 		// Try to feel crawler
-		if (!Human->bStrikeLockedIn)
+		Human->UpdateActiveStrikeBox();
+		if (Human->ActiveStrikeBox)
 		{
-			Human->ActiveStrikeBox = Human->CheckStrikeBoxes();
-			if (Human->ActiveStrikeBox)
-			{
-				BlackboardComp->SetValueAsEnum(AICon->StrikePositionKey, (uint8)Human->ActiveStrikeBox->StrikePosition);
-			}
-			else
-			{
-				BlackboardComp->SetValueAsEnum(AICon->StrikePositionKey, (uint8)EStrikePosition::None);
-			}
+			BlackboardComp->SetValueAsEnum(AICon->StrikePositionKey, (uint8)Human->ActiveStrikeBox->StrikePosition);
 		}
+		else
+		{
+			BlackboardComp->SetValueAsEnum(AICon->StrikePositionKey, (uint8)EStrikePosition::None);
+		}
+		
 	}
 }

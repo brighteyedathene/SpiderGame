@@ -16,6 +16,9 @@ UStrikeBox::UStrikeBox()
 	SocketName = FName("None");
 	StrikePosition = EStrikePosition::None;
 
+	StrikeDuration = 0.3f;
+	CooldownDuration = 2.f;
+
 	if (SocketMap.Num() == 0)
 	{
 		SocketMap.Add(EStrikePosition::Chest, "ChestSocket");
@@ -49,7 +52,7 @@ void UStrikeBox::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class
 	if (Crawler)
 	{
 		CrawlerInside = true;
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Entered!"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Entered!"));
 	}
 }
 
@@ -60,7 +63,7 @@ void UStrikeBox::OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class A
 	if (Crawler)
 	{
 		CrawlerInside = false;
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Left!"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Left!"));
 	}
 
 }

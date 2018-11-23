@@ -11,7 +11,6 @@ UStrikeLimb::UStrikeLimb()
 	//SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	Damage = 200.f;
-	StrikeDuration = 0.3f;
 
 	if (SocketMap.Num() == 0)
 	{
@@ -45,6 +44,8 @@ void UStrikeLimb::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, clas
 	if (Crawler)
 	{
 		Crawler->UpdateHealth_Implementation(-Damage);
+		
+		//GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("GATCHA"));
 	}
 }
 

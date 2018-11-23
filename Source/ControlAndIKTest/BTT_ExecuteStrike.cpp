@@ -7,9 +7,12 @@
 #include "HumanSenseComponent.h"
 
 
+
 EBTNodeResult::Type UBTT_ExecuteStrike::ExecuteTask(UBehaviorTreeComponent & OwnerComp, uint8 *  NodeMemory)
 {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("finding new tarfet.."));
+
+	bNotifyTick = true;
 
 	AHumanAIController * AICon = Cast<AHumanAIController>(OwnerComp.GetAIOwner());
 	AHuman* Human = Cast<AHuman>(AICon->GetPawn());
@@ -17,16 +20,31 @@ EBTNodeResult::Type UBTT_ExecuteStrike::ExecuteTask(UBehaviorTreeComponent & Own
 	{
 		UBlackboardComponent* BlackboardComp = AICon->GetBlackboardComp();
 
-		if (Human->bStrikeLockedIn)
+		if (Human->IsStriking())
 		{
 			return EBTNodeResult::InProgress;
 		}
-		return EBTNodeResult::Succeeded;
+		else
+		{
+			return EBTNodeResult::Succeeded;
+		}
 	}
 	return EBTNodeResult::Failed;
 }
 
 
+void UBTT_ExecuteStrike::TickTask(UBehaviorTreeComponent & OwnerComp, uint8 * NodeMemory, float DeltaSeconds)
+{
+	AHumanAIController * AICon = Cast<AHumanAIController>(OwnerComp.GetAIOwner());
+	AHuman* Human = Cast<AHuman>(AICon->GetPawn());
+	if (AICon && Human)
+	{
+		if (!Human->IsStriking())
+		{
+			FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+		}
+	}
+}
 
 
 

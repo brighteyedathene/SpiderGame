@@ -85,12 +85,12 @@ public:
 	TMap<ELimb, UStrikeLimb*> StrikeLimbMap;
 
 	UFUNCTION(BlueprintCallable, Category = Senses)
+	void UpdateActiveStrikeBox();
+
+	UFUNCTION(BlueprintCallable, Category = Senses)
 	UStrikeBox* CheckStrikeBoxes();
 
-	UPROPERTY(Transient, BlueprintReadWrite)
-	float StrikeTimer;
 
-	FVector StrikeTarget;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
 	EStrikePosition StrikePosition;
@@ -101,6 +101,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
 	UStrikeLimb* ActiveStrikeLimb;
 
+	/* This value augments strike progression for IK weight and animation blending - Should always be greater than 1!! 
+	* Effectively speeds up the motion of the strike without affecting the overall time taken
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
+	float EffectiveProgressMultiplier;
+
 	UPROPERTY(Transient, BlueprintReadWrite)
 	bool bStrikeLockedIn;
 
@@ -108,11 +114,21 @@ public:
 
 	void ContinueStrike(float DeltaTime);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
-	bool IsStriking() { return bStrikeLockedIn; }
+	UPROPERTY(Transient, BlueprintReadWrite)
+	float StrikeTimer;
+
+	FVector StrikeTarget;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
 	FVector GetStrikeTarget() { return StrikeTarget; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	bool IsStriking();
+
+
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	float GetStrikeProgress();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
 	float GetStrikeIKWeight();

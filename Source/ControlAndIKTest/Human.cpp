@@ -25,6 +25,7 @@ AHuman::AHuman()
 
 	HumanSense = CreateDefaultSubobject<UHumanSenseComponent>("HumanSense");
 
+	EffectiveProgressMultiplier = 2.f;
 }
 
 // Called when the game starts or when spawned
@@ -179,6 +180,14 @@ void AHuman::Die_Implementation()
 
 #pragma region Attack
 
+void AHuman::UpdateActiveStrikeBox()
+{
+	if (!IsStriking())
+	{
+		ActiveStrikeBox = CheckStrikeBoxes();
+	}
+}
+
 UStrikeBox* AHuman::CheckStrikeBoxes()
 {
 	for (auto & StrikeBox : StrikeBoxes)
@@ -215,26 +224,77 @@ void AHuman::ContinueStrike(float DeltaTime)
 
 	StrikeTimer += DeltaTime;
 
-	if (StrikeTimer > ActiveStrikeLimb->StrikeDuration)
+	// Deactivate hitbox after strike period
+	if (StrikeTimer > ActiveStrikeBox->StrikeDuration)
 	{
 		ActiveStrikeLimb->EndStrike();
+	}
+	// Fully end strike process after strike + cooldown period
+	if (StrikeTimer > ActiveStrikeBox->StrikeDuration + ActiveStrikeBox->CooldownDuration)
+	{
 		bStrikeLockedIn = false;
 		ActiveStrikeLimb = nullptr;
 	}
 }
 
+float AHuman::GetStrikeProgress()
+{
+	// Strike progress
+	// During striking period: ease in from [0 -> 0.5]
+	// During cooldown period: ease out from [0.5 -> 1]
+	// Timing is not necessarily symmetrical!
+
+	if (!ActiveStrikeBox)
+	{
+		return 0.f;
+	}
+
+	if (StrikeTimer < ActiveStrikeBox->StrikeDuration)
+	{
+		float t = StrikeTimer / ActiveStrikeBox->StrikeDuration;
+		t = fminf(1, t * EffectiveProgressMultiplier);
+		return FMath::InterpEaseIn(0.f, 0.5f, t, 2.f);
+	}
+	else
+	{
+		float t = (StrikeTimer - ActiveStrikeBox->StrikeDuration) / ActiveStrikeBox->CooldownDuration;
+		t = fminf(1, t * EffectiveProgressMultiplier);
+		return FMath::InterpEaseOut(0.5f, 1.f, t, 2.f);
+	}
+}
 
 float AHuman::GetStrikeIKWeight()
 {
-	if (ActiveStrikeLimb && ActiveStrikeLimb->StrikeDuration > 0)
+	// Strike IK Weight
+	// During Strike: Ease in towards 1
+	// After Strike: Ease in towards 0
+	if (ActiveStrikeBox)
 	{
-		float t = fminf(1.f, StrikeTimer / ActiveStrikeLimb->StrikeDuration);
-		return FMath::InterpEaseIn(0.f, 1.f, t, 2.f);
+		if (StrikeTimer < ActiveStrikeBox->StrikeDuration)
+		{
+			float t = StrikeTimer / ActiveStrikeBox->StrikeDuration;
+			t = fminf(1, t * EffectiveProgressMultiplier);
+			float Weight = FMath::InterpEaseIn(0.f, 1.f, t, 4.f);
+
+			//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, FString::SanitizeFloat(Weight));
+
+			return Weight;
+		}
+		else
+		{
+			float t =  (StrikeTimer - ActiveStrikeBox->StrikeDuration) / ActiveStrikeBox->CooldownDuration;
+			t = fminf(1, t * EffectiveProgressMultiplier);
+			float Weight = FMath::InterpEaseOut(1.f, 0.f, t, 4.f);
+
+			//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Orange, FString::SanitizeFloat(Weight));
+
+			return Weight;
+		}
 	}
 	else
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("StrikeDuration was 0"));
-		return 1.f;
+		return 0.f;
 	}
 }
 
@@ -248,6 +308,17 @@ ELimb AHuman::GetStrikeLimbType()
 	{
 		return ELimb::None;
 	}
+}
+
+bool AHuman::IsStriking()
+{
+	//if (bStrikeLockedIn)
+	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("LOCKED IN"));
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("Free"));
+	//}
+	return bStrikeLockedIn;
 }
 
 #pragma endregion Attack
