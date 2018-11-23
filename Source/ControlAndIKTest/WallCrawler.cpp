@@ -77,6 +77,7 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &AWallCrawler::Bite);
 
+
 	PlayerInputComponent->BindAction("ChangeCameraMode", IE_Pressed, this, &AWallCrawler::CycleCameraModes);
 	//PlayerInputComponent->BindAxis("Zoom", this, &AWallCrawler::Zoom); // Handled in blueprint!!
 
@@ -375,9 +376,42 @@ void AWallCrawler::Bite()
 		AHuman* Human = Cast<AHuman>(Hit.Actor.Get());
 		if (Human)
 		{
-			Human->Die_Implementation();
+			float Damage = Human->GetBiteDamageForBone(Hit.BoneName);
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("Bite: ") + Hit.BoneName.ToString());
+			if (Damage > 0)
+			{
+				Human->UpdateHealth_Implementation(-Damage);
+			}
 		}
 	}
+}
+
+bool AWallCrawler::HasBiteTarget()
+{
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this);
+
+	FHitResult Hit;
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		BiteRayStart->GetComponentLocation(),
+		BiteRayStart->GetComponentLocation() - RootComponent->GetUpVector() * BiteRayLength,
+		ECC_Visibility,
+		CollisionParameters))
+	{
+		AHuman* Human = Cast<AHuman>(Hit.Actor.Get());
+		if (Human)
+		{
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("Bite: ") + Hit.Component.Get()->GetFName().ToString() );
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("Bite: ") + Hit.BoneName.ToString() );
+			if (Human->GetBiteDamageForBone(Hit.BoneName) > 0)
+			{
+				return true;
+			}
+		}
+	}
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("nuthin"));
+	return false;
 }
 
 #pragma endregion Attack

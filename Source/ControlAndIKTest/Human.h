@@ -67,6 +67,12 @@ public:
 	virtual bool IsDead_Implementation() override;
 	virtual void Die_Implementation() override;
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
+	float GetBiteDamageForBone(FName BoneName);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
+	TMap<FName, float> LocationDamageMap;
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
 	float MaxHealth;
@@ -125,7 +131,8 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
 	bool IsStriking();
 
-
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+		bool HasActiveStrikeBox() { return ActiveStrikeBox != nullptr; };
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
 	float GetStrikeProgress();

@@ -139,6 +139,9 @@ protected:
 
 	void Bite();
 
+	UFUNCTION(BlueprintCallable, Category = Attack)
+	bool HasBiteTarget();
+
 #pragma endregion Attack
 
 

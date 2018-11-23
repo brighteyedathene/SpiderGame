@@ -26,6 +26,8 @@ AHuman::AHuman()
 	HumanSense = CreateDefaultSubobject<UHumanSenseComponent>("HumanSense");
 
 	EffectiveProgressMultiplier = 2.f;
+
+	MaxHealth = 100.f;
 }
 
 // Called when the game starts or when spawned
@@ -174,6 +176,19 @@ void AHuman::Die_Implementation()
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 	}
 }
+
+float AHuman::GetBiteDamageForBone(FName BoneName)
+{
+	if (!LocationDamageMap.Contains(BoneName))
+	{
+		return 0;
+	}
+	else
+	{
+		return LocationDamageMap[BoneName];
+	}
+}
+
 #pragma endregion Health
 
 
