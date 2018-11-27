@@ -24,6 +24,7 @@ UStrikeBox::UStrikeBox()
 	if (SocketMap.Num() == 0)
 	{
 		SocketMap.Add(EStrikePosition::Chest, "ChestSocket");
+		SocketMap.Add(EStrikePosition::Groin, "HipsSocket");
 		SocketMap.Add(EStrikePosition::LeftArm, "LeftForeArmSocket");
 		SocketMap.Add(EStrikePosition::RightArm, "RightForeArmSocket");
 		SocketMap.Add(EStrikePosition::LeftShoulder, "LeftArmSocket");

@@ -41,8 +41,6 @@ void UStrikeLimb::BeginStrike()
 
 void UStrikeLimb::EndStrike()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("..."));
-
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	bHitboxActive = false;
 }

@@ -14,6 +14,7 @@ enum class EStrikePosition : uint8
 {
 	None UMETA(DisplayName = "None"),
 	Chest UMETA(DisplayName = "Chest"),
+	Groin UMETA(DisplayName = "Groin"),
 	LeftArm UMETA(DisplayName = "LeftArm"),
 	RightArm UMETA(DisplayName = "RightArm"),
 	LeftShoulder UMETA(DisplayName = "LeftShoulder"),
