@@ -1,5 +1,9 @@
 Check out these videos to see it in action!
 
+Fangs:
+
+[![Fangs](http://img.youtube.com/vi/MhjdmUtJwiw/0.jpg)](https://www.youtube.com/watch?v=MhjdmUtJwiw "Fangs (watch it on youtube)")
+
 Gameplay test:
 
 [![Gameplay](http://img.youtube.com/vi/kz6_UiAdvHk/0.jpg)](https://www.youtube.com/watch?v=kz6_UiAdvHk "Gameplay (watch it on youtube)")
