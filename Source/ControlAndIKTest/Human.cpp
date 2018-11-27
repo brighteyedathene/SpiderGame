@@ -28,6 +28,8 @@ AHuman::AHuman()
 	EffectiveProgressMultiplier = 2.f;
 
 	MaxHealth = 100.f;
+
+	StunDecayDuration = 1.f;
 }
 
 // Called when the game starts or when spawned
@@ -68,6 +70,12 @@ void AHuman::BeginPlay()
 	}
 	// Sort strike boxes according to priority
 	StrikeBoxes.Sort(UStrikeBox::StrikeBoxCompare);
+	
+	// DEBUG List the strike boxes in order 
+	for (auto & SB : StrikeBoxes)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 45.0f, FColor::Yellow, SB->GetName());
+	}
 
 	// Populate the StrikeLimbMap and attach to skeleton sockets
 	TArray<UActorComponent*> StrikeLimbActorComponents = GetComponentsByClass(UStrikeLimb::StaticClass());
@@ -94,7 +102,17 @@ void AHuman::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!IsDead_Implementation() && !bStrikeLockedIn)
+	StunRemaining = fmaxf(0, StunRemaining - DeltaTime);
+	if (IsStunned())
+	{
+		HumanMovement->bMovementDisabled = true;
+	}
+	else
+	{
+		HumanMovement->bMovementDisabled = false;
+	}
+
+	if (!IsDead_Implementation() && !IsStunned() && !bStrikeLockedIn)
 	{
 		HumanGaitControl->UpdateGait(HumanMovement->GetVelocity(), HumanMovement->GetVelocity().Size() / HumanMovement->MaxSpeed);
 	}
@@ -137,6 +155,11 @@ float AHuman::GetHealth_Implementation()
 
 void AHuman::UpdateHealth_Implementation(float Delta)
 {
+	if (Delta < 0)
+	{
+		StunRemaining = StunDecayDuration;
+	}
+
 	CurrentHealth = fminf(CurrentHealth + Delta, MaxHealth);
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("ouch I recieved %f damage! Now my health is %f"), Delta, CurrentHealth));
 	if (IsDead_Implementation())
@@ -170,6 +193,10 @@ void AHuman::Die_Implementation()
 		for (auto & StrikeBox : StrikeBoxes)
 		{
 			StrikeBox->Disable();
+		}
+		for (auto & StrikeLimbElement : StrikeLimbMap)
+		{
+			StrikeLimbElement.Value->EndStrike();
 		}
 
 		//GetCom
@@ -240,12 +267,12 @@ void AHuman::ContinueStrike(float DeltaTime)
 	StrikeTimer += DeltaTime;
 
 	// Deactivate hitbox after strike period
-	if (StrikeTimer > ActiveStrikeBox->StrikeDuration)
+	if (ActiveStrikeLimb->bHitboxActive && StrikeTimer > ActiveStrikeBox->StrikeDuration)
 	{
 		ActiveStrikeLimb->EndStrike();
 	}
 	// Fully end strike process after strike + cooldown period
-	if (StrikeTimer > ActiveStrikeBox->StrikeDuration + ActiveStrikeBox->CooldownDuration)
+	if (IsStunned() || StrikeTimer > ActiveStrikeBox->StrikeDuration + ActiveStrikeBox->CooldownDuration)
 	{
 		bStrikeLockedIn = false;
 		ActiveStrikeLimb = nullptr;

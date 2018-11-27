@@ -16,6 +16,8 @@ enum class EStrikePosition : uint8
 	Chest UMETA(DisplayName = "Chest"),
 	LeftArm UMETA(DisplayName = "LeftArm"),
 	RightArm UMETA(DisplayName = "RightArm"),
+	LeftShoulder UMETA(DisplayName = "LeftShoulder"),
+	RightShoulder UMETA(DisplayName = "RightShoulder"),
 	Neck UMETA(DisplayName = "Neck"),
 	LowSurface UMETA(DisplayName = "LowSurface"),
 	HighSurface UMETA(DisplayName = "HighSurface")
@@ -62,6 +64,12 @@ public:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+
+	FVector BaseScale;
+
+	/* How much should this box expand when a crawler enters */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	float OverlapExpansionFactor;
 
 public:	
 	// Called every frame

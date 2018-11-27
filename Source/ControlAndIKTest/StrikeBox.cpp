@@ -19,10 +19,15 @@ UStrikeBox::UStrikeBox()
 	StrikeDuration = 0.3f;
 	CooldownDuration = 2.f;
 
+	OverlapExpansionFactor = 1.3;
+
 	if (SocketMap.Num() == 0)
 	{
 		SocketMap.Add(EStrikePosition::Chest, "ChestSocket");
 		SocketMap.Add(EStrikePosition::LeftArm, "LeftForeArmSocket");
+		SocketMap.Add(EStrikePosition::RightArm, "RightForeArmSocket");
+		SocketMap.Add(EStrikePosition::LeftShoulder, "LeftArmSocket");
+		SocketMap.Add(EStrikePosition::RightShoulder, "RightArmSocket");
 		//EStrikePosition::RightArm
 		//EStrikePosition::Neck
 		//EStrikePosition::LowSurface
@@ -36,7 +41,7 @@ void UStrikeBox::BeginPlay()
 {
 	Super::BeginPlay();
 	
-
+	BaseScale = GetRelativeTransform().GetScale3D();
 }
 
 
@@ -53,6 +58,9 @@ void UStrikeBox::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class
 	{
 		CrawlerInside = true;
 		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Entered!"));
+		BaseScale = GetRelativeTransform().GetScale3D();
+		SetRelativeScale3D(BaseScale * OverlapExpansionFactor);
+
 	}
 }
 
@@ -64,6 +72,7 @@ void UStrikeBox::OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class A
 	{
 		CrawlerInside = false;
 		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Left!"));
+		SetRelativeScale3D(BaseScale);
 	}
 
 }

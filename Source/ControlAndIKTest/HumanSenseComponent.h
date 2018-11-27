@@ -53,6 +53,9 @@ public:
 	
 	AWallCrawler* CrawlerTracker;
 	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Senses)
+	AWallCrawler* GetCrawlerTracker() { return CrawlerTracker; };
+
 	void Disable();
 
 };

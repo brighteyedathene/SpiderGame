@@ -7,6 +7,8 @@
 #include "Components/SphereComponent.h"
 
 #include "Human.h"
+#include "MobileTargetActor.h"
+
 
 #include "DrawDebugHelpers.h"
 
@@ -43,7 +45,9 @@ AWallCrawler::AWallCrawler()
 
 	BiteRayStart = CreateDefaultSubobject<USceneComponent>(TEXT("BiteRayStart"));
 	BiteRayStart->SetupAttachment(RootComponent);
-	BiteRayLength = 30.f;
+	BiteRayLength = 10.f;
+	BiteBaseDamage = 1.f;
+	BiteForceReleaseDistance = 20.f;
 
 	YawFactor = 6.0f;
 	MaxOrbitDistance = 200.f;
@@ -76,6 +80,7 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAction("Roll", IE_Released, this, &AWallCrawler::RollReleased);
 
 	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &AWallCrawler::Bite);
+	PlayerInputComponent->BindAction("Attack", IE_Released, this, &AWallCrawler::BiteRelease);
 
 
 	PlayerInputComponent->BindAction("ChangeCameraMode", IE_Pressed, this, &AWallCrawler::CycleCameraModes);
@@ -89,6 +94,9 @@ void AWallCrawler::BeginPlay()
 	Super::BeginPlay();
 
 	CurrentHealth = MaxHealth;
+
+	BiteTargetActor = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+
 }
 
 // Called every frame
@@ -109,17 +117,20 @@ void AWallCrawler::Tick(float DeltaTime)
 	//	MoveRotate(CurrentCamOwner->GetActorQuat());
 	//}
 
+	ContinueBite();
 
 	switch (CameraMode)
 	{
 	case ECameraMode::Follow:
 		UpdateCameraFollow();
-		MoveStrafe(CameraBoom->GetComponentQuat());
+		if (!BiteDown)
+			MoveStrafe(CameraBoom->GetComponentQuat());
 		break;
 
 	case ECameraMode::Orbit:
 		UpdateCameraOrbit();
-		MoveRotate(CameraBoom->GetComponentQuat());
+		if(!BiteDown)
+			MoveRotate(CameraBoom->GetComponentQuat());
 		break;
 
 	}
@@ -362,16 +373,8 @@ void AWallCrawler::Die_Implementation()
 
 void AWallCrawler::Bite()
 {
-	FCollisionQueryParams CollisionParameters;
-	CollisionParameters.AddIgnoredActor(this);
-
-	FHitResult Hit;
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		BiteRayStart->GetComponentLocation(),
-		BiteRayStart->GetComponentLocation() - RootComponent->GetUpVector() * BiteRayLength,
-		ECC_Visibility,
-		CollisionParameters))
+	FHitResult Hit = TryGetBiteTarget();
+	if (Hit.IsValidBlockingHit())
 	{
 		AHuman* Human = Cast<AHuman>(Hit.Actor.Get());
 		if (Human)
@@ -380,38 +383,102 @@ void AWallCrawler::Bite()
 			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("Bite: ") + Hit.BoneName.ToString());
 			if (Damage > 0)
 			{
-				Human->UpdateHealth_Implementation(-Damage);
+				CurrentBiteDPS = Damage * BiteBaseDamage;
+				BiteVictim = Human;
 			}
 		}
+		BiteTargetActor->AttachToComponent(Hit.Component.Get(), FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
+		BiteTargetActor->SetActorLocationAndRotation(Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
 	}
+
+	BiteDown = true;
 }
 
-bool AWallCrawler::HasBiteTarget()
+void AWallCrawler::BiteRelease()
 {
+	EndBite();
+}
+
+void AWallCrawler::ContinueBite()
+{
+	if (BiteVictim)
+	{
+		MarkLine(BiteRayStart->GetComponentLocation(), BiteTargetActor->GetActorLocation(), FColor::Red, 0);
+		if (FVector::Distance(BiteTargetActor->GetActorLocation(), BiteRayStart->GetComponentLocation()) > BiteForceReleaseDistance)
+		{
+			EndBite();
+		}
+		else
+		{
+			BiteVictim->UpdateHealth_Implementation(-CurrentBiteDPS * GetWorld()->GetDeltaSeconds());
+		}
+	}
+	
+}
+
+void AWallCrawler::EndBite()
+{
+	if (BiteVictim)
+	{
+		BiteVictim = nullptr;
+	}
+	BiteDown = false;
+}
+
+
+FHitResult AWallCrawler::TryGetBiteTarget()
+{
+	MarkLine(BiteRayStart->GetComponentLocation(), BiteRayStart->GetComponentLocation() - RootComponent->GetUpVector() * BiteRayLength, FColor::Green, 0);
+
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(this);
 
+	FVector RayOigin = BiteRayStart->GetComponentLocation();
+	FVector ForwardBias = RootComponent->GetForwardVector() * 5.f;
+	FVector RightBias = RootComponent->GetRightVector() * 5.f;
+
 	FHitResult Hit;
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		BiteRayStart->GetComponentLocation(),
-		BiteRayStart->GetComponentLocation() - RootComponent->GetUpVector() * BiteRayLength,
-		ECC_Visibility,
-		CollisionParameters))
+	if ((GetWorld()->LineTraceSingleByChannel(Hit,
+			RayOigin,
+			RayOigin - RootComponent->GetUpVector() * BiteRayLength,
+			ECC_Visibility, CollisionParameters)
+
+		|| GetWorld()->LineTraceSingleByChannel(Hit,
+			RayOigin,
+			RayOigin - RootComponent->GetUpVector() * BiteRayLength + ForwardBias,
+			ECC_Visibility, CollisionParameters)
+
+		|| GetWorld()->LineTraceSingleByChannel(Hit,
+			RayOigin,
+			RayOigin - RootComponent->GetUpVector() * BiteRayLength - ForwardBias,
+			ECC_Visibility, CollisionParameters)
+		))
 	{
 		AHuman* Human = Cast<AHuman>(Hit.Actor.Get());
 		if (Human)
 		{
-			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("Bite: ") + Hit.Component.Get()->GetFName().ToString() );
-			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("Bite: ") + Hit.BoneName.ToString() );
 			if (Human->GetBiteDamageForBone(Hit.BoneName) > 0)
 			{
-				return true;
+				return Hit;
 			}
 		}
 	}
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("nuthin"));
-	return false;
+	FHitResult NoHit;
+	return NoHit;
+}
+
+bool AWallCrawler::HasPotentialBiteTarget()
+{
+	FHitResult Hit = TryGetBiteTarget();
+	if (Hit.IsValidBlockingHit())
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}	
 }
 
 #pragma endregion Attack
@@ -458,6 +525,8 @@ void AWallCrawler::FlushInput()
 
 void AWallCrawler::JumpPressed()
 {
+	EndBite();
+
 	CrawlerMovement->MaybeStartJump();
 }
 void AWallCrawler::JumpReleased()

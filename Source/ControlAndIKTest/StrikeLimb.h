@@ -29,6 +29,9 @@ public:
 
 	UStrikeLimb();
 
+	// Called every frame
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
 	ELimb LimbType;
 
@@ -37,6 +40,8 @@ public:
 
 	void BeginStrike();
 	void EndStrike();
+
+	bool bHitboxActive;
 
 	static TMap<ELimb, FName> SocketMap;
 

@@ -192,7 +192,7 @@ void UHumanMovement::StickToGround()
 {
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(GetOwner());
-	ECollisionChannel TraceChannel = ECC_WorldStatic; // should be the 'Floor' channel
+	ECollisionChannel TraceChannel = ECC_GameTraceChannel5; // should be the 'Floor' channel
 
 
 	FVector Start = UpdatedComponent->GetComponentLocation() + FVector::UpVector * GroundRayStartOffset;

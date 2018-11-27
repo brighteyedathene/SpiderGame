@@ -3,8 +3,12 @@
 #include "StrikeLimb.h"
 #include "WallCrawler.h"
 
+#include "DrawDebugHelpers.h"
+
 UStrikeLimb::UStrikeLimb()
 {
+	PrimaryComponentTick.bCanEverTick = true;
+
 	this->OnComponentBeginOverlap.AddDynamic(this, &UStrikeLimb::OnOverlapBegin);
 	//this->OnComponentEndOverlap.AddDynamic(this, &UStrikeLimb::OnOverlapEnd);
 	SetCollisionProfileName("StrikeBoxCollision");
@@ -30,12 +34,17 @@ void UStrikeLimb::BeginPlay()
 
 void UStrikeLimb::BeginStrike()
 {
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("GAHAAAAA"));
 	SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	bHitboxActive = true;
 }
 
 void UStrikeLimb::EndStrike()
 {
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("..."));
+
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	bHitboxActive = false;
 }
 
 void UStrikeLimb::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -47,6 +56,17 @@ void UStrikeLimb::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, clas
 		
 		//GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("GATCHA"));
 	}
+}
+
+
+void UStrikeLimb::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	FColor BoxColor = FColor::Green;
+	if (bHitboxActive)
+		BoxColor = FColor::Red;
+	
+	DrawDebugBox(GetWorld(), GetComponentLocation(), GetScaledBoxExtent(), GetComponentQuat(), BoxColor, false, -1.f, 0, 0.1f);//, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f);
+
 }
 
 

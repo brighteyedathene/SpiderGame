@@ -12,7 +12,8 @@
 #include "WallCrawler.generated.h"
 
 class USphereComponent;
-
+class AMobileTargetActor;
+class AHuman;
 
 UENUM()
 enum class ECameraMode : uint8
@@ -134,13 +135,33 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
 	float BiteRayLength;
 
+	/* This actor is to be attached to the bitten human */ 
+	AMobileTargetActor* BiteTargetActor;
+	AHuman* BiteVictim;
+
+	/* How far before the bite target is forcibly released */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
-	float BiteDamage;
+	float BiteForceReleaseDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
+	float BiteBaseDamage;
+	float CurrentBiteDPS;
 
 	void Bite();
+	void BiteRelease();
+	void ContinueBite();
+	void EndBite();
 
-	UFUNCTION(BlueprintCallable, Category = Attack)
-	bool HasBiteTarget();
+	
+	/* Is the crawler locked in a bite */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = Attack)
+	bool BiteDown;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Attack)
+	bool HasPotentialBiteTarget();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Attack)
+	FHitResult TryGetBiteTarget();
 
 #pragma endregion Attack
 

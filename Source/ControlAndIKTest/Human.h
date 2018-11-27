@@ -73,12 +73,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
 	TMap<FName, float> LocationDamageMap;
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
+	bool IsStunned() { return StunRemaining > 0; };
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
+	float GetStunRemaing() { return StunRemaining/StunDecayDuration; };
+
+
+
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
 	float MaxHealth;
 	float CurrentHealth;
 
 	bool bDead;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = Health)
+	float StunRemaining;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
+	float StunDecayDuration;
 
 #pragma endregion Health
 
