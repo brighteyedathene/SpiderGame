@@ -3,12 +3,14 @@
 #include "StrikeBox.h"
 #include "WallCrawler.h"
 
+#include "DrawDebugHelpers.h"
+
 // Sets default values for this component's properties
 UStrikeBox::UStrikeBox()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 
 	this->OnComponentBeginOverlap.AddDynamic(this, &UStrikeBox::OnOverlapBegin);
 	this->OnComponentEndOverlap.AddDynamic(this, &UStrikeBox::OnOverlapEnd);
@@ -25,6 +27,8 @@ UStrikeBox::UStrikeBox()
 	{
 		SocketMap.Add(EStrikePosition::Chest, "ChestSocket");
 		SocketMap.Add(EStrikePosition::Groin, "HipsSocket");
+		SocketMap.Add(EStrikePosition::Face, "HeadSocket");
+		SocketMap.Add(EStrikePosition::Occiput, "HeadSocket");
 		SocketMap.Add(EStrikePosition::LeftArm, "LeftForeArmSocket");
 		SocketMap.Add(EStrikePosition::RightArm, "RightForeArmSocket");
 		SocketMap.Add(EStrikePosition::LeftShoulder, "LeftArmSocket");
@@ -50,6 +54,9 @@ void UStrikeBox::BeginPlay()
 void UStrikeBox::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if(CrawlerInside)
+		DrawDebugBox(GetWorld(), GetComponentLocation(), GetScaledBoxExtent(), GetComponentQuat(), FColor::White, false, -1.f, 0, 0.2f);
 }
 
 void UStrikeBox::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)

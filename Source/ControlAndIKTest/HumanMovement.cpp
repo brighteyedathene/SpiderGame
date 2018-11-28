@@ -202,19 +202,12 @@ void UHumanMovement::StickToGround()
 	FHitResult Hit;
 	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, TraceChannel, CollisionParameters))
 	{
-		DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, -1, 0, 0.1f);
-
-
 		//UpdatedComponent->SetWorldLocation(Hit.ImpactPoint + FVector::UpVector * HeightOffGround);
 		
 		FVector GravityVector = Hit.ImpactPoint - FeetPosition;
 
 		UpdatedComponent->AddWorldOffset(FVector::UpVector * GravityVector.Z);
 		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
-	}
-	else
-	{
-		DrawDebugLine(GetWorld(), Start, End, FColor::Yellow, false, -1, 0, 0.1f);
 	}
 
 }

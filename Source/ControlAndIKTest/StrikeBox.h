@@ -15,11 +15,13 @@ enum class EStrikePosition : uint8
 	None UMETA(DisplayName = "None"),
 	Chest UMETA(DisplayName = "Chest"),
 	Groin UMETA(DisplayName = "Groin"),
+	Neck UMETA(DisplayName = "Neck"),
+	Face UMETA(DisplayName = "Face"),
+	Occiput UMETA(DisplayName = "Occiput"),
 	LeftArm UMETA(DisplayName = "LeftArm"),
 	RightArm UMETA(DisplayName = "RightArm"),
 	LeftShoulder UMETA(DisplayName = "LeftShoulder"),
 	RightShoulder UMETA(DisplayName = "RightShoulder"),
-	Neck UMETA(DisplayName = "Neck"),
 	LowSurface UMETA(DisplayName = "LowSurface"),
 	HighSurface UMETA(DisplayName = "HighSurface")
 };
@@ -46,7 +48,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	FName SocketName;
 
-	/* Higher number means higher priority when choosing a pose */
+	/* Higher number means lower priority when choosing a pose. 0 = first */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	int Priority;
 
