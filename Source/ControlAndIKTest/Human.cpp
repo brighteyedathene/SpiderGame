@@ -275,6 +275,8 @@ void AHuman::ContinueStrike(float DeltaTime)
 	if (IsStunned() || StrikeTimer > ActiveStrikeBox->StrikeDuration + ActiveStrikeBox->CooldownDuration)
 	{
 		bStrikeLockedIn = false;
+		if(ActiveStrikeLimb)
+			ActiveStrikeLimb->EndStrike();
 		ActiveStrikeLimb = nullptr;
 	}
 }

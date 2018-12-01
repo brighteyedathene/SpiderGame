@@ -344,17 +344,20 @@ void AWallCrawler::Die_Implementation()
 	{
 		bDead = true;
 		
+		EndBite();
+
 		TArray<UStaticMeshComponent*> StaticMeshes;
 		GetComponents<UStaticMeshComponent>(StaticMeshes);
-		//for (auto Mesh : RagdollMeshes)
-		for (auto Mesh : StaticMeshes)
+		for (auto & Mesh : StaticMeshes)
 		{
 			Mesh->SetSimulatePhysics(true);
+			Mesh->SetCollisionProfileName("PhysicsBody");
 		}
+
 		MySphereComponent->SetSimulatePhysics(false); // everything except the root
 		MySphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-		for (auto Leg : CrawlerGaitControl->Legs)
+		for (auto & Leg : CrawlerGaitControl->Legs)
 		{
 			Leg->Die();
 		}
@@ -373,6 +376,9 @@ void AWallCrawler::Die_Implementation()
 
 void AWallCrawler::Bite()
 {
+	if (IsDead_Implementation())
+		return;
+
 	FHitResult Hit = TryGetBiteTarget();
 	if (Hit.IsValidBlockingHit())
 	{
@@ -401,6 +407,7 @@ void AWallCrawler::BiteRelease()
 
 void AWallCrawler::ContinueBite()
 {
+
 	if (BiteVictim)
 	{
 		MarkLine(BiteRayStart->GetComponentLocation(), BiteTargetActor->GetActorLocation(), FColor::Red, 0);
