@@ -115,6 +115,10 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	UPROPERTY(EditAnywhere, Category = IK)
 	float DirectionModifierStrength;
 
+	/** When IKTarget's relative forward is below this value, the IKPins will blend together. */
+	UPROPERTY(EditAnywhere, Category = IK)
+	float IKPinBlendRange;
+
 	UPROPERTY(EditAnywhere, Category = IK)
 	EIKLimbType LimbType;
 

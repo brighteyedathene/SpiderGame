@@ -49,7 +49,7 @@ AIKArm::AIKArm()
 	MaximumAngle = 60.f;
 	MaximumAngleUnderneath = 50.f;
 	DirectionModifierStrength = 165.f;
-
+	IKPinBlendRange = 50.f;
 	IKTargetTransitionSpeed = 40;
 }
 
@@ -58,8 +58,8 @@ AIKArm::AIKArm()
 void AIKArm::BeginPlay()
 {
 	Super::BeginPlay();
-	LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
-
+	//LowerArm->SetRelativeLocation(FVector(UpperArmLength, 0, 0));
+	LowerArm->SetWorldLocation(UpperArm->GetComponentLocation() + UpperArm->GetForwardVector() * UpperArmLength);
 	/** If there is a Parent, update it first.
 	* When piggybacking at high speeds, 
 	* the Parent's piggyback movement should take place first
@@ -111,11 +111,21 @@ void AIKArm::Tick(float DeltaTime)
 
 	m_bMovementDelta = FVector(0,0,0);
 	
+	//MarkSpot(m_pTargetParent->GetActorLocation(), FColor::White, 0);
+	//MarkSpot(LowerArm->GetComponentLocation(), FColor::White, 0);
+
 	if (SHOW_DEBUG_INFO)
 	{
 		//MarkSpot(IKTargetIntermediate, FColor::White);
-		//MarkSpot(IKTargetFinal, FColor::Red);
-		//DebugDrawProbes();
+		//if(GaitStepIndex==0)
+		//	MarkSpot(IKTargetFinal, FColor::Red);
+		//else
+		//{
+		//	MarkSpot(IKTargetFinal, FColor::Green);
+		//
+		//}
+		DebugDrawProbes();
+		//DebugDrawArm();
 	}
 }
 
@@ -178,7 +188,8 @@ void AIKArm::ProbeForIKTarget(FVector DirectionModifier)
 			if (AttemptSolveIK())
 			{
 				m_pTargetParent->SetActorLocationAndRotation(Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
-				m_pTargetParent->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
+				m_pTargetParent->AttachToComponent(Hit.Component.Get(), FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
+				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, Hit.BoneName.GetPlainNameString());
 
 				m_bNeedNewTarget = false;
 				return;
@@ -216,7 +227,7 @@ bool AIKArm::AttemptSolveIK()
 		{
 			if (SHOW_DEBUG_INFO)
 			{
-				MarkSpot(IKTargetFinal, FColor::Blue);
+				//MarkSpot(IKTargetFinal, FColor::Blue);
 			}
 
 			SolutionInvalid = true;
@@ -249,7 +260,7 @@ bool AIKArm::AttemptSolveIK()
 		LowerArmAngle = 0;
 		if (SHOW_DEBUG_INFO)
 		{
-			MarkSpot(IKTargetIntermediate, FColor::Cyan);
+			//MarkSpot(IKTargetIntermediate, FColor::Cyan);
 		}
 
 		SolutionInvalid = true;
@@ -282,10 +293,12 @@ FMatrix AIKArm::GetIKFrameRotationMatrix(FVector IKTarget)
 	FVector Forward = IKTarget - IKRoot->GetComponentLocation();
 	
 	// When IKTarget's relative forward is below this value, the IKPins will blend together.
-	const float IKPinBlendRange = 50.f;
 	FVector RelativeForward = IKRoot->GetComponentQuat().Inverse() * Forward;
 	float IKPinBlend = fmaxf(0, fminf(1, RelativeForward.X / IKPinBlendRange));
 	FVector Up = (IKPinBlend * IKPin->GetComponentLocation() + (1 - IKPinBlend) * UnderTargetIKPin->GetComponentLocation()) - IKRoot->GetComponentLocation();
+
+	//if(SHOW_DEBUG_INFO)
+	//	MarkLine(IKRoot->GetComponentLocation(), IKRoot->GetComponentLocation() + Up, FColor::Green, 0);
 
 	return FRotationMatrix::MakeFromXZ(Forward, Up);
 }
@@ -495,7 +508,7 @@ void AIKArm::DebugDrawProbes()
 			GetWorld(),
 			IKProbe.GetStart(),
 			IKProbe.GetModifiedRayEnd(FVector(0,0,0)),
-			FColor(current,current, 255 - current, 1), false, -1, 0, 6.f
+			FColor(current,current, 255 - current, 1), false, -1, 0, 0.6f
 		);
 		current += delta;
 	}
@@ -505,14 +518,14 @@ void AIKArm::DebugDrawProbes()
 void AIKArm::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
 	bool IsPersistant = Duration > 0;
-	float length = 10.f;
+	float length = 1.f;
 	for (int x = -1; x <= 1; x++)
 	{
 		for (int y = -1; y <= 1; y++)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 0.1f);
 			}
 		}
 	}
@@ -521,5 +534,5 @@ void AIKArm::MarkSpot(FVector Point, FColor Colour, float Duration)
 void AIKArm::MarkLine(FVector Start, FVector End, FColor Colour, float Duration)
 {
 	bool IsPersistant = Duration > 0;
-	DrawDebugLine(GetWorld(), Start, End, Colour, IsPersistant, Duration, 0, 1.f);
+	DrawDebugLine(GetWorld(), Start, End, Colour, IsPersistant, Duration, 0, 0.1f);
 }

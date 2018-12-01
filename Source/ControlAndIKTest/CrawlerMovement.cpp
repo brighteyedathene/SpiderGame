@@ -155,6 +155,13 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 
 			LatchPoint = MobileTargetActor->GetActorLocation();
 			LatchNormal = MobileTargetActor->GetActorRotation().Vector();
+
+
+			MarkLine(LatchPoint, MobileTargetActor->GetActorLocation(), FColor::Red, 0);
+			if (MobileTargetActor->GetParentActor())
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(MobileTargetActor->GetParentActor()));
+			}
 		}
 
 		{
@@ -495,9 +502,24 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 					if (Hit.Distance < MinDistance)
 					{
 						MinDistance = Hit.Distance;
-						MobileTargetActor->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
+
+						//MobileTargetActor->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
+						//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
+
+						MobileTargetActor->AttachToComponent(Hit.Component.Get(), FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
+						FString Label = Hit.Component.Get()->GetReadableName();
+						int ChopIndex = Label.Len() / 2;
+						Label = Label.RightChop(ChopIndex);
+						//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, Label);
+						//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, Hit.BoneName.GetPlainNameString());
 						//UpdatedComponent->GetOwner()->AttachToActor(Hit.Actor.Get(), AttachmentRules);
 					}
+
+					//MarkLine(O, Hit.ImpactPoint, FColor::Red, 0);
+				}
+				else
+				{
+					//MarkLine(O, O + Ray * SurfaceRayLength, FColor::White, 0);
 				}
 			}
 		}
@@ -574,7 +596,7 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 {
 	// We will calculate a forward vector based on the model rotation, the normal and the camera
 	// CameraRelativePitch is used to keep the camera from locking up when looking directly up/down
-	const FVector CamForward = CameraRotation.GetForwardVector() + CameraRotation.GetUpVector() * (CameraRelativePitch / 90);
+	const FVector CamForward = m_ViewForward;
 	const FVector ModelUp = UpdatedComponent->GetUpVector();
 	const FVector ModelForward = ProjectToPlane(CamForward, ModelUp).GetSafeNormal();
 
@@ -592,28 +614,27 @@ void UCrawlerMovement::RotateTowardsNormal(FVector Normal, float t)
 
 	// Apply the rotation to RootComponent
 	FQuat RootQuat = UpdatedComponent->GetComponentQuat();
-	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, t * GetWorld()->GetDeltaSeconds());
+	FQuat FinalQuat = FQuat::Slerp(RootQuat, LookAtQuat, fminf(1, t * GetWorld()->GetDeltaSeconds()));
 	UpdatedComponent->SetRelativeRotation(FinalQuat);
 }
 
-void UCrawlerMovement::SetCameraRotation(FQuat Rotation, float RelativePitch)
+void UCrawlerMovement::SetViewForward(FVector Direction)
 { 
-	CameraRotation = Rotation; 
-	CameraRelativePitch = RelativePitch;
+	m_ViewForward = Direction;
 };
 
 // Delte these later
 void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour, float Duration)
 {
 	bool IsPersistant = Duration > 0;
-	float length = 10.f;
+	float length = 1.f;
 	for (int x = -1; x <= 1; x++)
 	{
 		for (int y = -1; y <= 1; y++)
 		{
 			for (int z = -1; z <= 1; z++)
 			{
-				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 1.f);
+				DrawDebugLine(GetWorld(), Point, Point + (FVector(x, y, z) * length), Colour, IsPersistant, Duration, 0, 0.1f);
 			}
 		}
 	}
@@ -622,5 +643,5 @@ void UCrawlerMovement::MarkSpot(FVector Point, FColor Colour, float Duration)
 void UCrawlerMovement::MarkLine(FVector Start, FVector End, FColor Colour, float Duration)
 {
 	bool IsPersistant = Duration > 0;
-	DrawDebugLine(GetWorld(), Start, End, Colour, IsPersistant, Duration, 0, 1.f);
+	DrawDebugLine(GetWorld(), Start, End, Colour, IsPersistant, Duration, 0, 0.1f);
 }

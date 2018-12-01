@@ -12,7 +12,16 @@
 #include "WallCrawler.generated.h"
 
 class USphereComponent;
+class AMobileTargetActor;
+class AHuman;
 
+UENUM()
+enum class ECameraMode : uint8
+{
+	Follow,
+	Orbit,
+	Fixed
+};
 
 UCLASS()
 class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface
@@ -20,8 +29,7 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface
 	GENERATED_BODY()
 
 
-	UPROPERTY(EditAnywhere)
-	USphereComponent* MySphereComponent;
+
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -39,6 +47,8 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface
 	
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	USphereComponent* MySphereComponent;
 
 
 	// Sets default values for this pawn's properties
@@ -49,6 +59,47 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+
+#pragma region Camera
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	ECameraMode CameraMode;
+
+	UPROPERTY(Editanywhere, BlueprintReadWrite, Category = Camera)
+	TArray<AActor*> FixedCameras;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	int FixedCameraIndex;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float MaxOrbitDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float MinOrbitDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float ZoomSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float FollowCameraDistance;
+
+
+
+	//void Zoom(float Value); // Handled in blueprint!! Can't get TargetArmLength here
+
+	void UpdateCameraFollow();
+	void UpdateCameraOrbit();
+	void UpdateCameraFixed();
+
+	void CycleCameraModes();
+
+	void MoveStrafe(const FQuat & CameraQuat);
+	void MoveRotate(const FQuat & CameraQuat);
+
+#pragma endregion Camera
+
 
 #pragma region Health
 
@@ -73,6 +124,46 @@ protected:
 	bool bDead;
 
 #pragma endregion Health
+
+#pragma region Attack
+
+protected:
+
+	UPROPERTY(EditAnywhere, Category = Attack)
+	USceneComponent* BiteRayStart;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
+	float BiteRayLength;
+
+	/* This actor is to be attached to the bitten human */ 
+	AMobileTargetActor* BiteTargetActor;
+	AHuman* BiteVictim;
+
+	/* How far before the bite target is forcibly released */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
+	float BiteForceReleaseDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attack)
+	float BiteBaseDamage;
+	float CurrentBiteDPS;
+
+	void Bite();
+	void BiteRelease();
+	void ContinueBite();
+	void EndBite();
+
+	
+	/* Is the crawler locked in a bite */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = Attack)
+	bool BiteDown;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Attack)
+	bool HasPotentialBiteTarget();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Attack)
+	FHitResult TryGetBiteTarget();
+
+#pragma endregion Attack
 
 
 protected:
@@ -124,5 +215,6 @@ protected:
 #pragma endregion Input
 
 	void MarkSpot(FVector Point, FColor Colour, float Duration);
+	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 
 };
