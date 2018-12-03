@@ -4,7 +4,7 @@
 #include "HumanMovement.h"
 #include "HumanGaitControl.h"
 #include "HumanSenseComponent.h"
-
+#include "MobileTargetActor.h"
 
 #include "Runtime/Engine/Classes/Engine/TargetPoint.h"
 #include "Runtime/Engine/Classes/Components/CapsuleComponent.h"
@@ -232,9 +232,11 @@ void AHuman::UpdateActiveStrikeBox()
 
 UStrikeBox* AHuman::CheckStrikeBoxes()
 {
+	bool CrawlerOnBody = IsCrawlerOnBody();
+
 	for (auto & StrikeBox : StrikeBoxes)
 	{
-		if (StrikeBox->CrawlerInside)
+		if (StrikeBox->RequiresCrawlerOnBody == CrawlerOnBody && StrikeBox->CrawlerInside)
 		{
 			return StrikeBox;
 		}
@@ -242,6 +244,26 @@ UStrikeBox* AHuman::CheckStrikeBoxes()
 	return nullptr;
 }
 
+bool AHuman::IsCrawlerOnBody()
+{
+	TArray<AActor*> ChildActors;
+	//GetAllChildActors(ChildActors, true);
+	GetAttachedActors(ChildActors);
+	for (auto & Child : ChildActors)
+	{
+		AMobileTargetActor* MTA = Cast<AMobileTargetActor>(Child);
+		if (MTA)
+		{
+			if (MTA->MTAOwnerType == EMTAOwnerType::CrawlerBody)
+			{
+				return true;
+			}
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Orange, AActor::GetDebugName(Child));
+
+	}
+	return false;
+}
 
 void AHuman::BeginStrike(FVector Target)
 {

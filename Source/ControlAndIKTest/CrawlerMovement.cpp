@@ -59,6 +59,7 @@ void UCrawlerMovement::BeginPlay()
 	Super::BeginPlay();
 
 	MobileTargetActor = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+	MobileTargetActor->MTAOwnerType = EMTAOwnerType::CrawlerBody;
 }
 
 

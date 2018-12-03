@@ -50,6 +50,9 @@ public:
 	bool CrawlerInside;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
+	bool RequiresCrawlerOnBody;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	FName SocketName;
 
 	/* Higher number means lower priority when choosing a pose. 0 = first */
