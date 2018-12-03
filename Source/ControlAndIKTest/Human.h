@@ -111,6 +111,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Senses)
 	UStrikeBox* CheckStrikeBoxes();
 
+	/** Returns true if a crawler is latched to this human */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
 	bool IsCrawlerOnBody();
 
