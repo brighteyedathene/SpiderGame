@@ -82,9 +82,32 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 	float ZoomSpeed;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
-	float FollowCameraDistance;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
+	USceneComponent* FollowCamRailStart;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
+	USceneComponent* FollowCamRailEnd;
+
+	UPROPERTY(Transient, BlueprintReadWrite, Category = Camera)
+	float FollowCameraDistance;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float MaxFollowCameraDistance;
+
+
+	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
+	float BaseTurnRate;
+
+	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
+	float BaseLookUpRate;
+
+	/** Assists with yaw turning to make it less sluggish */
+	UPROPERTY(EditAnywhere, Category = Camera)
+	float YawFactor;
 
 
 	//void Zoom(float Value); // Handled in blueprint!! Can't get TargetArmLength here
@@ -172,18 +195,6 @@ protected:
 
 
 #pragma region Input
-
-	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
-	float BaseTurnRate;
-
-	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
-	float BaseLookUpRate;
-
-	/** Assists with yaw turning to make it less sluggish */
-	UPROPERTY(EditAnywhere, Category = Camera)
-	float YawFactor;
 
 	void CollectForwardInput(float Value);
 	void CollectRightInput(float Value);

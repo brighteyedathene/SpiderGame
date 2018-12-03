@@ -43,17 +43,23 @@ AWallCrawler::AWallCrawler()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false; 
 
-	BiteRayStart = CreateDefaultSubobject<USceneComponent>(TEXT("BiteRayStart"));
-	BiteRayStart->SetupAttachment(RootComponent);
-	BiteRayLength = 10.f;
-	BiteBaseDamage = 1.f;
-	BiteForceReleaseDistance = 20.f;
+	FollowCamRailStart = CreateDefaultSubobject<USceneComponent>(TEXT("FollowCamRailStart"));
+	FollowCamRailStart->SetupAttachment(RootComponent);
+	FollowCamRailEnd = CreateDefaultSubobject<USceneComponent>(TEXT("FollowCamRailEnd"));
+	FollowCamRailEnd->SetupAttachment(RootComponent);
 
 	YawFactor = 6.0f;
 	MaxOrbitDistance = 200.f;
 	MinOrbitDistance = 0.0f;
 	ZoomSpeed = 0.05f;
 	FollowCameraDistance = 30.f;
+	MaxFollowCameraDistance = 30.f;
+
+	BiteRayStart = CreateDefaultSubobject<USceneComponent>(TEXT("BiteRayStart"));
+	BiteRayStart->SetupAttachment(RootComponent);
+	BiteRayLength = 10.f;
+	BiteBaseDamage = 1.f;
+	BiteForceReleaseDistance = 20.f;
 
 	MaxHealth = 100.f;
 }
@@ -175,14 +181,16 @@ void AWallCrawler::CycleCameraModes()
 void AWallCrawler::UpdateCameraFollow()
 {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Using my camera!"));
+	const float FOLLOW_CAM_MAX_PITCH = 89.f;
+	const float FOLLOW_CAM_MIN_PITCH = -89.f;
 
 	// Rotation control...
 	LocalPitch += InputPitch;
 	LocalYaw += InputYaw;
-	if (LocalPitch > 89.0f)
-		LocalPitch = 89.0f;
-	if (LocalPitch < -89.0f)
-		LocalPitch = -89.0f;
+	if (LocalPitch > FOLLOW_CAM_MAX_PITCH)
+		LocalPitch = FOLLOW_CAM_MAX_PITCH;
+	if (LocalPitch < FOLLOW_CAM_MIN_PITCH)
+		LocalPitch = FOLLOW_CAM_MIN_PITCH;
 
 	if (LocalYaw > 360.0f)
 		LocalYaw -= 360.0f;
@@ -202,6 +210,11 @@ void AWallCrawler::UpdateCameraFollow()
 		FRotator CameraRotation = FRotator(-LocalPitch, InputYaw * YawFactor, 0);
 		CameraBoom->SetRelativeRotation(CameraRotation);
 	}
+
+	float PitchFactor = FMath::GetMappedRangeValueClamped(FVector2D(FOLLOW_CAM_MIN_PITCH, FOLLOW_CAM_MAX_PITCH), FVector2D(0.f, 1.f), LocalPitch);
+	FVector CameraPosition = FollowCamRailStart->GetComponentLocation() * PitchFactor + FollowCamRailEnd->GetComponentLocation() * (1 - PitchFactor);
+	CameraBoom->SetWorldLocation(CameraPosition);
+	FollowCameraDistance = fminf(MaxFollowCameraDistance, PitchFactor * MaxFollowCameraDistance);
 
 }
 
