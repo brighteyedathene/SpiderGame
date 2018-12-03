@@ -111,7 +111,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Senses)
 	UStrikeBox* CheckStrikeBoxes();
 
-
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	bool IsCrawlerOnBody();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
 	EStrikePosition StrikePosition;
