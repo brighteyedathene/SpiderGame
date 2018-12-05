@@ -26,7 +26,8 @@ enum class EStrikePosition : uint8
 	RightThigh UMETA(DisplayName = "RightThigh"),
 	LeftFoot UMETA(DisplayName = "LeftFoot"),
 	RightFoot UMETA(DisplayName = "RightFoot"),
-	LowSurface UMETA(DisplayName = "LowSurface"),
+	LowSurfaceLeft UMETA(DisplayName = "LowSurfaceLeft"),
+	LowSurfaceRight UMETA(DisplayName = "LowSurfaceRight"),
 	HighSurface UMETA(DisplayName = "HighSurface")
 };
 
