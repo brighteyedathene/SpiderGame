@@ -51,7 +51,13 @@ public:
 	bool CrawlerInside;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
-	bool RequiresCrawlerOnBody;
+	bool bDetectionDependsOnBone;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
+	TArray<FName> DetectionBoneNames;
+
+	UFUNCTION()
+	bool IsBoneValidForDetection(const FName & BoneName);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	FName SocketName;

@@ -91,6 +91,18 @@ void UStrikeBox::OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class A
 
 }
 
+bool UStrikeBox::IsBoneValidForDetection(const FName & BoneName)
+{
+	if (bDetectionDependsOnBone)
+	{
+		return DetectionBoneNames.Contains(BoneName);
+	}
+	else
+	{
+		return true;
+	}
+}
+
 
 void UStrikeBox::Disable()
 {

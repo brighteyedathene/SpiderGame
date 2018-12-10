@@ -2,6 +2,8 @@
 
 #include "CrawlerMovement.h"
 
+#include "Human.h"
+
 #include "DrawDebugHelpers.h"
 
 
@@ -503,17 +505,7 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 					if (Hit.Distance < MinDistance)
 					{
 						MinDistance = Hit.Distance;
-
-						//MobileTargetActor->AttachToActor(Hit.Actor.Get(), FAttachmentTransformRules::KeepWorldTransform);
-						//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
-
 						MobileTargetActor->AttachToComponent(Hit.Component.Get(), FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
-						FString Label = Hit.Component.Get()->GetReadableName();
-						int ChopIndex = Label.Len() / 2;
-						Label = Label.RightChop(ChopIndex);
-						//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, Label);
-						//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, Hit.BoneName.GetPlainNameString());
-						//UpdatedComponent->GetOwner()->AttachToActor(Hit.Actor.Get(), AttachmentRules);
 					}
 
 					//MarkLine(O, Hit.ImpactPoint, FColor::Red, 0);

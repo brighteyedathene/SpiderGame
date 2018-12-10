@@ -232,11 +232,11 @@ void AHuman::UpdateActiveStrikeBox()
 
 UStrikeBox* AHuman::CheckStrikeBoxes()
 {
-	bool CrawlerOnBody = IsCrawlerOnBody();
+	FName CrawlerBoneName = GetCrawlerBoneName();
 
 	for (auto & StrikeBox : StrikeBoxes)
 	{
-		if (StrikeBox->RequiresCrawlerOnBody == CrawlerOnBody && StrikeBox->CrawlerInside)
+		if(StrikeBox->CrawlerInside && StrikeBox->IsBoneValidForDetection(CrawlerBoneName))
 		{
 			return StrikeBox;
 		}
@@ -264,6 +264,29 @@ bool AHuman::IsCrawlerOnBody()
 	}
 	return false;
 }
+
+FName AHuman::GetCrawlerBoneName()
+{
+	TArray<AActor*> ChildActors;
+	GetAttachedActors(ChildActors);
+	for (auto & Child : ChildActors)
+	{
+		AMobileTargetActor* MTA = Cast<AMobileTargetActor>(Child);
+		if (MTA)
+		{
+			if (MTA->MTAOwnerType == EMTAOwnerType::CrawlerBody)
+			{
+				FName CrawlerBoneName = MTA->GetAttachParentSocketName();
+				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Cyan, CrawlerBoneName.ToString());
+
+				return CrawlerBoneName;
+			}
+		}
+
+	}
+	return FName("None");
+}
+
 
 void AHuman::BeginStrike(FVector Target)
 {
