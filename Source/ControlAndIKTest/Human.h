@@ -115,6 +115,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
 	bool IsCrawlerOnBody();
 
+	/** Returns the crawler's latched bone name or "None" */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
+	FName GetCrawlerBoneName();
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attack)
 	EStrikePosition StrikePosition;
 
