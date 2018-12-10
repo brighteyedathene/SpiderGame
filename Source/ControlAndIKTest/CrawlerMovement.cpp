@@ -506,13 +506,6 @@ bool UCrawlerMovement::ExploreEnvironmentWithRays(
 					{
 						MinDistance = Hit.Distance;
 						MobileTargetActor->AttachToComponent(Hit.Component.Get(), FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
-
-						//AHuman* Human = Cast<AHuman>(Hit.Actor);
-						//if (Human)
-						//{
-						//	// Tell the human what bone the crawler is on
-						//}
-
 					}
 
 					//MarkLine(O, Hit.ImpactPoint, FColor::Red, 0);
