@@ -67,10 +67,6 @@ public:
 	virtual bool IsDead_Implementation() override;
 	virtual void Die_Implementation() override;
 
-	/** Lets the blueprint know we just died, so it can do some stuff with the level */
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = Health)
-	void DeathNotice();
-
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
 	float GetBiteDamageForBone(FName BoneName);
 

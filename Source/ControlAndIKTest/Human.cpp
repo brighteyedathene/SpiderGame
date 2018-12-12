@@ -72,10 +72,10 @@ void AHuman::BeginPlay()
 	StrikeBoxes.Sort(UStrikeBox::StrikeBoxCompare);
 	
 	// DEBUG List the strike boxes in order 
-	for (auto & SB : StrikeBoxes)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 45.0f, FColor::Yellow, SB->GetName());
-	}
+	//for (auto & SB : StrikeBoxes)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 45.0f, FColor::Yellow, SB->GetName());
+	//}
 
 	// Populate the StrikeLimbMap and attach to skeleton sockets
 	TArray<UActorComponent*> StrikeLimbActorComponents = GetComponentsByClass(UStrikeLimb::StaticClass());
@@ -161,7 +161,7 @@ void AHuman::UpdateHealth_Implementation(float Delta)
 	}
 
 	CurrentHealth = fminf(CurrentHealth + Delta, MaxHealth);
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("ouch I recieved %f damage! Now my health is %f"), Delta, CurrentHealth));
+	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::White, FString::Printf(TEXT("%f damage! Current health %f"), Delta, CurrentHealth));
 	if (IsDead_Implementation())
 	{
 		Die_Implementation();
@@ -199,10 +199,10 @@ void AHuman::Die_Implementation()
 			StrikeLimbElement.Value->EndStrike();
 		}
 
-		DeathNotice();
+		Execute_DeathNotice_BPEvent(this);
 
 		//GetCom
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 	}
 }
 

@@ -33,4 +33,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Health")
 	bool IsDead();
+
+	/** Lets the blueprint know we just died, so it can do some stuff with the level */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "Health")
+	void DeathNotice_BPEvent();
+
 };

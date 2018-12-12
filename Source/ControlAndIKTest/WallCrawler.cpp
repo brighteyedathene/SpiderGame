@@ -377,6 +377,9 @@ void AWallCrawler::Die_Implementation()
 
 		CrawlerMovement->bShouldUpdate = false;
 
+		Execute_DeathNotice_BPEvent(this);
+		//DeathNotice_BPEvent();
+
 		//GetCom
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 	}
