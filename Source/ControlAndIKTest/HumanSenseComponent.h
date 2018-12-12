@@ -41,6 +41,9 @@ public:
 	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
 	float SenseRadius;
 
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
+	float FieldOfView;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Senses)
 	float TensionThreshold;
 
@@ -52,7 +55,8 @@ public:
 	bool CheckVision(AActor* Target);
 	
 	AWallCrawler* CrawlerTracker;
-	
+	//TArray<AHuman*> NearbyHumans;
+
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Senses)
 	AWallCrawler* GetCrawlerTracker() { return CrawlerTracker; };
 
