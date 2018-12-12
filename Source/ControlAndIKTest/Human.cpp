@@ -199,6 +199,8 @@ void AHuman::Die_Implementation()
 			StrikeLimbElement.Value->EndStrike();
 		}
 
+		DeathNotice();
+
 		//GetCom
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 	}
@@ -277,7 +279,7 @@ FName AHuman::GetCrawlerBoneName()
 			if (MTA->MTAOwnerType == EMTAOwnerType::CrawlerBody)
 			{
 				FName CrawlerBoneName = MTA->GetAttachParentSocketName();
-				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Cyan, CrawlerBoneName.ToString());
+				//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Cyan, CrawlerBoneName.ToString());
 
 				return CrawlerBoneName;
 			}

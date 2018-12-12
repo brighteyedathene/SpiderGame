@@ -4,6 +4,9 @@
 #include "WallCrawler.h"
 
 
+#include "DrawDebugHelpers.h"
+
+
 // Sets default values for this component's properties
 UHumanSenseComponent::UHumanSenseComponent()
 {
@@ -12,6 +15,7 @@ UHumanSenseComponent::UHumanSenseComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 
 	SenseRadius = 500.f;
+	FieldOfView = 45.f;
 	this->OnComponentBeginOverlap.AddDynamic(this, &UHumanSenseComponent::OnOverlapBegin);
 	this->OnComponentEndOverlap.AddDynamic(this, &UHumanSenseComponent::OnOverlapEnd);
 	SetCollisionProfileName("SensorCollision");
@@ -79,6 +83,30 @@ void UHumanSenseComponent::OnOverlapEnd(class UPrimitiveComponent* OverlappedCom
 
 bool UHumanSenseComponent::CheckVision(AActor* Target)
 {
+	if (!Target)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Tried to look at null"));
+		return false;
+	}
+
+	// Check angle
+	FVector TargetDirection = (Target->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
+	float Angle = FMath::RadiansToDegrees( acosf(FVector::DotProduct(TargetDirection, GetUpVector())));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, FString::SanitizeFloat(Angle));
+
+
+	//DrawDebugLine(GetWorld(), GetComponentLocation(), GetComponentLocation() + GetUpVector() * 200, FColor::Yellow, false, -1, 0, 0.1f);
+
+
+
+	if (Angle > FieldOfView)
+	{
+		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Not In field of view"));
+		return false;
+	}
+
+
+
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(GetOwner());
 	ECollisionChannel TraceChannel = ECC_Visibility;
@@ -90,10 +118,14 @@ bool UHumanSenseComponent::CheckVision(AActor* Target)
 	{
 		if (Hit.Actor.Get() == Target || Hit.Actor.Get()->GetParentActor() == Target)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("GATCHA! I see you"));
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("GATCHA! I see you"));
+			DrawDebugLine(GetWorld(), Target->GetActorLocation(), GetComponentLocation(), FColor::Red, false, -1, 0, 0.1f);
+
 			return true;
 		}
 	}
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Blocked by somethin..."));
+
 	return false;
 }
 

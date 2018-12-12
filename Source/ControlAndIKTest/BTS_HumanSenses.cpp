@@ -44,6 +44,13 @@ void UBTS_HumanSenses::TickNode(UBehaviorTreeComponent & OwnerComp, uint8 * Node
 		UBlackboardComponent* BlackboardComp = AICon->GetBlackboardComp();
 
 		// Try to see crawler
+		bool CrawlerInSight = false;
+		if (Human->HumanSense->CrawlerTracker)
+		{
+			CrawlerInSight = Human->HumanSense->CheckVision((AActor*)Human->HumanSense->CrawlerTracker);
+		}
+		//if(CrawlerInSight)
+		//			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 
 
 		// Try to feel crawler
