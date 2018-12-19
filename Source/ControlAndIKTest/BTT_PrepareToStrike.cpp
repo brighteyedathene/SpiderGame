@@ -17,15 +17,15 @@ EBTNodeResult::Type UBTT_PrepareToStrike::ExecuteTask(UBehaviorTreeComponent & O
 	{
 		UBlackboardComponent* BlackboardComp = AICon->GetBlackboardComp();
 
-		if (Human->HumanSense->CrawlerTracker && Human->ActiveStrikeBox)
+		if (Human->ActiveStrikeBox && !Human->IsStunned())
 		{
 
 			//Human->HumanSense->CrawlerTracker.GetActorLocation();
 			//BlackboardComp->SetValueAsVector(AICon->StrikeTargetKey, Human->HumanSense->CrawlerTracker->GetActorLocation());
 			//BlackboardComp->SetValueAsFloat(AICon->StrikeProgressKey, 0);
 
-			FVector TargetLocation = Human->HumanSense->CrawlerTracker->GetActorLocation();
-			Human->BeginStrike(TargetLocation);
+			Human->BeginStrike();
+
 			return EBTNodeResult::Succeeded;
 		}
 		else

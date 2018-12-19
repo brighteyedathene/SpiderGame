@@ -46,7 +46,7 @@ APointOfInterest* APointOfInterestSet::GetPointOfInterest()
 
 	if (PointsOfInterest.Num() < 1)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::Red, TEXT("CRITICAL WARNING: No points of interest!"));
+		//GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::Red, TEXT("CRITICAL WARNING: No points of interest!"));
 		return nullptr;
 	}
 

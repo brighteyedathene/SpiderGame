@@ -25,6 +25,7 @@ AHumanAIController::AHumanAIController()
 	StrikePositionKey = "StrikePosition";
 	StrikeTargetKey = "StrikeTarget";
 	StrikeProgressKey = "StrikeProgress";
+	ReadyForActionKey = "ReadyForAction";
 }
 
 void AHumanAIController::Possess(APawn* Pawn)

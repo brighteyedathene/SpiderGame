@@ -48,6 +48,9 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
 	FName StrikeProgressKey;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName ReadyForActionKey;
 
 	APointOfInterestSet* PointOfInterestSet;
 };

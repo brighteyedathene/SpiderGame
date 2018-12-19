@@ -59,8 +59,8 @@ void UStrikeLimb::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, clas
 
 void UStrikeLimb::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	if (bHitboxActive)
-		DrawDebugBox(GetWorld(), GetComponentLocation(), GetScaledBoxExtent(), GetComponentQuat(), FColor::Red, false, -1.f, 0, 0.1f);
+	//if (bHitboxActive)
+	//	DrawDebugBox(GetWorld(), GetComponentLocation(), GetScaledBoxExtent(), GetComponentQuat(), FColor::Red, false, -1.f, 0, 0.1f);
 
 }
 

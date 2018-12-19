@@ -39,6 +39,8 @@ UStrikeBox::UStrikeBox()
 		SocketMap.Add(EStrikePosition::RightFoot, "RightLegSocket");
 		SocketMap.Add(EStrikePosition::LowSurfaceLeft, "None");
 		SocketMap.Add(EStrikePosition::LowSurfaceRight, "None");
+		SocketMap.Add(EStrikePosition::MidSurface, "None");
+		SocketMap.Add(EStrikePosition::HighSurface, "None");
 		//EStrikePosition::RightArm
 		//EStrikePosition::Neck
 		//EStrikePosition::LowSurface

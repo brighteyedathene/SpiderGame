@@ -2,6 +2,8 @@
 
 #include "HumanSenseComponent.h"
 #include "WallCrawler.h"
+#include "Human.h"
+
 
 
 #include "DrawDebugHelpers.h"
@@ -38,9 +40,12 @@ void UHumanSenseComponent::BeginPlay()
 		if (SkeletalMesh)
 		{
 			AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepRelativeTransform, FName("HeadSocket"));
+			IgnoreComponentWhenMoving(SkeletalMesh, true);
 		}
 	}
 	SetSphereRadius(SenseRadius);
+
+	CollisionParameters.AddIgnoredActor(GetOwner());
 }
 
 
@@ -54,34 +59,55 @@ void UHumanSenseComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 void UHumanSenseComponent::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	AWallCrawler* Crawler = Cast<AWallCrawler>(OtherActor);
-	if (Crawler)
-	{
-		CrawlerTracker = Crawler;
-		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Entered the big csphere!"));
 
-	}
+
+
 }
 
 
 void UHumanSenseComponent::OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	AWallCrawler* Crawler = Cast<AWallCrawler>(OtherActor);
-	if (Crawler)
-	{
-		CrawlerTracker = nullptr;
-		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Left the big sphere!"));
 
-	}
+
 
 }
 
 
 
+void UHumanSenseComponent::UpdateVision()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString("Update vision should not be called on HumanSenseComponent"));
 
+	//bool CrawlerSeen = false;
+	//bool BodySeen = false;
+	//
+	//
+	//
+	//for (auto & Thing : NearbyThings)
+	//{
+	//	if (IsThisActorVisible(Thing))
+	//	{
+	//		AWallCrawler* Crawler = Cast<AWallCrawler>(Thing);
+	//		if (Crawler)
+	//		{
+	//			CrawlerSeen = true;
+	//			CrawlerLastKnownLocation = Thing->GetActorLocation();
+	//		}
+	//		AHuman* Human = Cast<AHuman>(Thing);
+	//		if (Human)
+	//		{
+	//			if (Human->IsDead_Implementation())
+	//			{
+	//				BodySeen = true;
+	//			}
+	//		}
+	//	}
+	//}
+	//CrawlerInSight = CrawlerSeen;
+	//BodyInSight = BodySeen;
+}
 
-
-bool UHumanSenseComponent::CheckVision(AActor* Target)
+bool UHumanSenseComponent::IsThisActorVisible(AActor* Target)
 {
 	if (!Target)
 	{
@@ -89,8 +115,20 @@ bool UHumanSenseComponent::CheckVision(AActor* Target)
 		return false;
 	}
 
+	FVector TargetLocation;
+
+	IVisibleInterface* VisibleInterface = Cast<IVisibleInterface>(Target);
+	if (VisibleInterface)
+	{
+		TargetLocation = VisibleInterface->GetVisionTargetLocation_Implementation();
+	}
+	else
+	{
+		TargetLocation = Target->GetActorLocation();
+	}
+
 	// Check angle
-	FVector TargetDirection = (Target->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
+	FVector TargetDirection = (TargetLocation - GetComponentLocation()).GetSafeNormal();
 	float Angle = FMath::RadiansToDegrees( acosf(FVector::DotProduct(TargetDirection, GetUpVector())));
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, FString::SanitizeFloat(Angle));
 
@@ -105,23 +143,25 @@ bool UHumanSenseComponent::CheckVision(AActor* Target)
 		return false;
 	}
 
-
-
-	FCollisionQueryParams CollisionParameters;
-	CollisionParameters.AddIgnoredActor(GetOwner());
-	ECollisionChannel TraceChannel = ECC_Visibility;
+	
+	//ECollisionChannel TraceChannel = ECollisionChannel::ECC_GameTraceChannel18; // Human vision channel
+	ECollisionChannel TraceChannel = ECollisionChannel::ECC_Visibility;
 
 	FVector Start = GetComponentLocation();
-	FVector End = Target->GetActorLocation();
 	FHitResult Hit;
-	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, TraceChannel, CollisionParameters))
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, TargetLocation, TraceChannel, CollisionParameters))
 	{
 		if (Hit.Actor.Get() == Target || Hit.Actor.Get()->GetParentActor() == Target)
 		{
 			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("GATCHA! I see you"));
-			DrawDebugLine(GetWorld(), Target->GetActorLocation(), GetComponentLocation(), FColor::Red, false, -1, 0, 0.1f);
+			DrawDebugLine(GetWorld(), Hit.ImpactPoint, GetComponentLocation(), FColor::Red, false, -1, 0, 0.1f);
 
 			return true;
+		}
+		else
+		{
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, AActor::GetDebugName(GetOwner()) +  FString(" was BLOCKED by ") + AActor::GetDebugName(Hit.Actor.Get()) + FString("'s ") + Hit.Component.Get()->GetFName().ToString());
+			DrawDebugLine(GetWorld(), Hit.ImpactPoint, GetComponentLocation(), FColor::Yellow, false, -1, 0, 0.1f);
 		}
 	}
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Blocked by somethin..."));
@@ -134,3 +174,5 @@ void UHumanSenseComponent::Disable()
 {
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
+
+
