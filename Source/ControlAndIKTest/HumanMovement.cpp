@@ -22,7 +22,7 @@ UHumanMovement::UHumanMovement(const FObjectInitializer& ObjectInitializer)
 
 	ResetMoveState();
 
-
+	TurnArrivalThreshold = 0.1;
 }
 
 void UHumanMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -86,7 +86,15 @@ void UHumanMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FA
 			}
 		}
 
-		TurnToFaceDirection(DeltaTime, Velocity);
+		if (bUseGivenDirection)
+		{
+			TurnToFaceDirection(DeltaTime, GivenDirection);
+		}
+		else
+		{
+			TurnToFaceDirection(DeltaTime, Velocity);
+		}
+
 		StickToGround();
 
 		// Finalize
@@ -186,6 +194,14 @@ void UHumanMovement::TurnToFaceDirection(float DeltaTime, FVector Direction)
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("TurnSpeed = %f"), CurrentTurnSpeed));
 
 	UpdatedComponent->AddRelativeRotation(FRotator(0, CurrentTurnSpeed, 0), true);
+
+	if (bUseGivenDirection)
+	{
+		if (fabsf(YawDiff) < TurnArrivalThreshold)
+		{
+			bUseGivenDirection = false;
+		}
+	}
 }
 
 void UHumanMovement::StickToGround()
@@ -210,4 +226,11 @@ void UHumanMovement::StickToGround()
 		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, AActor::GetDebugName(Hit.Actor.Get()));
 	}
 
+}
+
+
+void UHumanMovement::SetFaceDirection(FVector Direction)
+{
+	bUseGivenDirection = true;
+	GivenDirection = Direction;
 }

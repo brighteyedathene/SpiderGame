@@ -167,6 +167,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
 	TMap<FName, float> LocationDamageMap;
 
+	UFUNCTION(BlueprintCallable, Category = Health)
+	void SetStunnedFor(float StunDuration) { StunRemaining = fmaxf(StunRemaining, StunDuration); };
+
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
 	bool IsStunned() { return StunRemaining > 0; };
 	
@@ -285,5 +288,14 @@ public:
 	float GetRightFootIKBlend();
 
 #pragma endregion Gait
+
+
+
+#pragma region Movement
+
+	UFUNCTION(BlueprintCallable, Category = Movement)
+	void TurnToFaceDirection(FVector Direction);
+
+#pragma endregion Movement
 
 };

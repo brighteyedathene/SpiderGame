@@ -7,6 +7,9 @@
 #include "MobileTargetActor.h"
 #include "GlobalAuthority.h"
 
+#include "WallCrawler.h"
+
+
 #include "Runtime/Engine/Classes/Engine/TargetPoint.h"
 #include "Runtime/Engine/Classes/Components/CapsuleComponent.h"
 
@@ -521,6 +524,29 @@ void AHuman::BeginStrike()
 void AHuman::ContinueStrike(float DeltaTime)
 {
 	//DrawDebugLine(GetWorld(), ActiveStrikeLimb->GetComponentLocation(), StrikeTargetTracker->GetActorLocation(), FColor::Red, false, -1, 0, 0.1f);
+	//FCollisionQueryParams CollisionParams;
+	//CollisionParams.AddIgnoredActor(this);
+	//TArray<FHitResult> Hits;
+	//GetWorld()->LineTraceMultiByChannel(Hits, ActiveStrikeLimb->GetComponentLocation(), StrikeTargetTracker->GetActorLocation(), ECC_GameTraceChannel7, CollisionParams);
+	//for (auto & Hit : Hits)
+	//{
+	//	//if (ActiveStrikeLimb->IgnoredBones.Contains(Hit.BoneName))
+	//	//	continue;
+	//
+	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, AActor::GetDebugName(Hit.Actor.Get()) + FString("'s ") + Hit.Component.Get()->GetFName().ToString() + FString(" on the ") + Hit.BoneName.ToString());
+	//
+	//
+	//	if (Cast<AWallCrawler>(Hit.Actor.Get()))
+	//	{
+	//		HumanGaitControl->MarkSpot(Hit.ImpactPoint, FColor::Yellow, 0.5);
+	//	}
+	//	else
+	//	{
+	//		StrikeTargetTracker->SetActorLocation(Hit.ImpactPoint);
+	//		HumanGaitControl->MarkSpot(Hit.ImpactPoint, FColor::Red, 0.5);
+	//	}
+	//}
+	
 
 	StrikeTimer += DeltaTime;
 
@@ -708,3 +734,13 @@ float AHuman::GetRightFootIKBlend()
 }
 
 #pragma endregion Gait
+
+
+#pragma region Movement
+
+void AHuman::TurnToFaceDirection(FVector Direction)
+{
+	HumanMovement->SetFaceDirection(Direction);
+}
+
+#pragma endregion Movement

@@ -2,6 +2,7 @@
 
 #include "StrikeLimb.h"
 #include "WallCrawler.h"
+#include "Human.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -29,6 +30,7 @@ UStrikeLimb::UStrikeLimb()
 void UStrikeLimb::BeginPlay()
 {
 	Super::BeginPlay();
+	IgnoreActorWhenMoving(GetOwner(), true);
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -47,6 +49,9 @@ void UStrikeLimb::EndStrike()
 
 void UStrikeLimb::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	if (OtherActor == GetOwner())
+		return;
+
 	AWallCrawler* Crawler = Cast<AWallCrawler>(OtherActor);
 	if (Crawler)
 	{
@@ -54,6 +59,21 @@ void UStrikeLimb::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, clas
 		
 		//GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("GATCHA"));
 	}
+	//AHuman* Human = Cast<AHuman>(OtherActor);
+	//if (Human)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Orange, FString("oopsie to ") + AActor::GetDebugName(OtherActor));
+	//	Human->SetStunnedFor(2.2);
+	//}
+	//else
+	//{
+	//	Human = Cast<AHuman>(GetOwner());
+	//	if (Human)
+	//	{
+	//		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, FString("Stunned by ") + AActor::GetDebugName(OtherActor));
+	//		Human->SetStunnedFor(2.2);
+	//	}
+	//}
 }
 
 

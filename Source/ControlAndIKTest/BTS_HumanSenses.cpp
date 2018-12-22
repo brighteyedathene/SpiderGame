@@ -4,6 +4,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "HumanAIController.h"
 #include "Human.h"
+#include "GlobalAuthority.h"
 #include "HumanSenseComponent.h"
 
 
@@ -51,6 +52,7 @@ void UBTS_HumanSenses::TickNode(UBehaviorTreeComponent & OwnerComp, uint8 * Node
 		if (Human->ActiveStrikeBox)
 		{
 			BlackboardComp->SetValueAsEnum(AICon->StrikePositionKey, (uint8)Human->ActiveStrikeBox->StrikePosition);
+			BlackboardComp->SetValueAsVector(AICon->CrawlerLastKnownLocationKey, Human->GlobalAuthority->GetCrawlerLastKnownLocation());
 		}
 		else
 		{

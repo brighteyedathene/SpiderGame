@@ -38,7 +38,7 @@ public:
 	FName PointOfInterestDirectionKey;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
-	FName CrawlerKey;
+	FName CrawlerLastKnownLocationKey;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
 	FName StrikePositionKey;
