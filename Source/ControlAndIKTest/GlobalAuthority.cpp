@@ -6,6 +6,7 @@
 #include "WallCrawler.h"
 #include "Human.h"
 
+#include "Runtime/Engine/Classes/Engine/World.h"
 #include "TensionMeterComponent.h"
 
 // Sets default values
@@ -22,6 +23,9 @@ void AGlobalAuthority::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	// In case there is a global authority already in the level, let it be THE static global auth
+	TheGlobalAuthority = this;
+
 	// Gather humans and let them know who is the global authority (it's this)
 	TArray<AActor*> HumanActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AHuman::StaticClass(), HumanActors);
@@ -31,7 +35,6 @@ void AGlobalAuthority::BeginPlay()
 		if (Human)
 		{
 			Humans.Add(Human);
-			Human->SetGlobalAuthority(this);
 		}
 	}
 
@@ -52,15 +55,6 @@ void AGlobalAuthority::BeginPlay()
 	{
 		Crawler = Cast<AWallCrawler>(CrawlerActors[0]);
 	}
-
-	// Debug stuff
-	//GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("GlobalAuthority:"));
-	//GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("Humans: ") + FString::FromInt(Humans.Num()));
-	//for (auto & Human : Humans)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("		") + AActor::GetDebugName(Human));
-	//}
-	//GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("Crawler: ") + (Crawler ? FString("yes") : FString("no")));
 
 }
 
@@ -110,19 +104,6 @@ float AGlobalAuthority::GetAlertTimeRemaining()
 
 FString AGlobalAuthority::GetAlertTimeRemainingAsString(int NumDecimalPlaces)
 {
-	// Multiply by 10^NumDecimalPlaces
-	// Floor
-	// Divide by NumDecimalPlaces
-	// Convert to String
-
-	//float Multiplier = powf(10, NumDecimalPlaces);
-	//float Value = TensionMeter->GetTensionValue();
-	//Value *= Multiplier;
-	//Value = floorf(Value);
-	//Value /= Multiplier;
-	//
-	//return FString::SanitizeFloat(Value, 2);
-
 	FString FullString = FString::SanitizeFloat(TensionMeter->GetTensionValue(), 2);
 	int DecimalPointIndex;
 	if (FullString.FindChar('.', DecimalPointIndex))
@@ -159,4 +140,21 @@ AHuman* AGlobalAuthority::GetNearestLivingHuman(FVector ThisLocation, AHuman* Ig
 	}
 
 	return ClosestHuman;
+}
+
+
+void AGlobalAuthority::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	TheGlobalAuthority = nullptr;
+}
+
+AGlobalAuthority* AGlobalAuthority::TheGlobalAuthority;
+
+AGlobalAuthority* AGlobalAuthority::GetGlobalAuthority(UObject* AnyObjectInWorld)
+{
+	if(!TheGlobalAuthority)
+	{
+		TheGlobalAuthority = AnyObjectInWorld->GetWorld()->SpawnActor<AGlobalAuthority>(AGlobalAuthority::StaticClass());
+	}
+	return TheGlobalAuthority;
 }

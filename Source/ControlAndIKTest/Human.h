@@ -61,10 +61,10 @@ public:
 #pragma region GlobalReferencing
 
 	/** Holds references to important things like the crawler, humans and alert level */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GlobalReferencing)
-	AGlobalAuthority* GlobalAuthority;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GlobalReferencing)
+	//AGlobalAuthority* GlobalAuthority;
 
-	void SetGlobalAuthority(AGlobalAuthority* NewGlobalAuthority) { GlobalAuthority = NewGlobalAuthority; };
+	//void SetGlobalAuthority(AGlobalAuthority* NewGlobalAuthority) { GlobalAuthority = NewGlobalAuthority; };
 
 #pragma endregion GlobalReferencing
 
