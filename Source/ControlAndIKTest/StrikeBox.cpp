@@ -28,7 +28,8 @@ UStrikeBox::UStrikeBox()
 		SocketMap.Add(EStrikePosition::Chest, "ChestSocket");
 		SocketMap.Add(EStrikePosition::Groin, "HipsSocket");
 		SocketMap.Add(EStrikePosition::Face, "HeadSocket");
-		SocketMap.Add(EStrikePosition::Occiput, "HeadSocket");
+		SocketMap.Add(EStrikePosition::HeadRight, "HeadSocket");
+		SocketMap.Add(EStrikePosition::HeadLeft, "HeadSocket");
 		SocketMap.Add(EStrikePosition::LeftArm, "LeftForeArmSocket");
 		SocketMap.Add(EStrikePosition::RightArm, "RightForeArmSocket");
 		SocketMap.Add(EStrikePosition::LeftShoulder, "LeftArmSocket");
@@ -39,6 +40,8 @@ UStrikeBox::UStrikeBox()
 		SocketMap.Add(EStrikePosition::RightFoot, "RightLegSocket");
 		SocketMap.Add(EStrikePosition::LowSurfaceLeft, "None");
 		SocketMap.Add(EStrikePosition::LowSurfaceRight, "None");
+		SocketMap.Add(EStrikePosition::MidSurface, "None");
+		SocketMap.Add(EStrikePosition::HighSurface, "None");
 		//EStrikePosition::RightArm
 		//EStrikePosition::Neck
 		//EStrikePosition::LowSurface

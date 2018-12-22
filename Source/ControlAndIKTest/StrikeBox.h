@@ -17,17 +17,19 @@ enum class EStrikePosition : uint8
 	Groin UMETA(DisplayName = "Groin"),
 	Neck UMETA(DisplayName = "Neck"),
 	Face UMETA(DisplayName = "Face"),
-	Occiput UMETA(DisplayName = "Occiput"),
+	HeadRight UMETA(DisplayName = "HeadRight"),
+	HeadLeft UMETA(DisplayName = "HeadLeft"),
 	LeftArm UMETA(DisplayName = "LeftArm"),
 	RightArm UMETA(DisplayName = "RightArm"),
 	LeftShoulder UMETA(DisplayName = "LeftShoulder"),
-	RightShoulder UMETA(DisplayName = "RightShoulder"),	
+	RightShoulder UMETA(DisplayName = "RightShoulder"),
 	LeftThigh UMETA(DisplayName = "LeftThigh"),
 	RightThigh UMETA(DisplayName = "RightThigh"),
 	LeftFoot UMETA(DisplayName = "LeftFoot"),
 	RightFoot UMETA(DisplayName = "RightFoot"),
 	LowSurfaceLeft UMETA(DisplayName = "LowSurfaceLeft"),
 	LowSurfaceRight UMETA(DisplayName = "LowSurfaceRight"),
+	MidSurface UMETA(DisplayuName = "MidSurface"),
 	HighSurface UMETA(DisplayName = "HighSurface")
 };
 
@@ -66,15 +68,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StrikeSetup)
 	int Priority;
 
-	/* How quickly can this box detect a crawler? 0 means it never will. */
+	/* How quickly can this box detect a crawler? 0 means it never will. (Not in use!) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
 	float Sensitivity;
 
-	/* How quickly can this box detect a crawler? 0 means it never will. */
+	/* How long will the deadly part of the strike last. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
 	float StrikeDuration;
 
-	/* How quickly can this box detect a crawler? 0 means it never will. */
+	/* How long before another strike can be started */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
 	float CooldownDuration;
 
@@ -82,6 +84,7 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
+	/* Tracks the normal size of the collider before expansion */
 	FVector BaseScale;
 
 	/* How much should this box expand when a crawler enters */
@@ -101,7 +104,6 @@ public:
 	void OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	void Disable();
-	
 
 	inline static bool StrikeBoxCompare(UStrikeBox& One, UStrikeBox& Two) { return One.Priority < Two.Priority; }
 

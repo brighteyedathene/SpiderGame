@@ -27,6 +27,9 @@ EBTNodeResult::Type UBTT_FindNewDestination::ExecuteTask(UBehaviorTreeComponent 
 		{
 			NextPoint->Occupy(); 
 			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, AActor::GetDebugName(NextPoint));
+			BlackboardComp->SetValueAsObject(AICon->PointOfInterestKey, NextPoint);
+			BlackboardComp->SetValueAsVector(AICon->LocationToGoKey, NextPoint->GetActorLocation());
+			BlackboardComp->SetValueAsVector(AICon->PointOfInterestDirectionKey, NextPoint->GetActorLocation() + NextPoint->GetActorForwardVector() * 100);
 		}
 
 		if (CurrentPoint)
@@ -35,9 +38,7 @@ EBTNodeResult::Type UBTT_FindNewDestination::ExecuteTask(UBehaviorTreeComponent 
 			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, AActor::GetDebugName(CurrentPoint));
 		}
 
-		BlackboardComp->SetValueAsObject(AICon->PointOfInterestKey, NextPoint);
-		BlackboardComp->SetValueAsVector(AICon->LocationToGoKey, NextPoint->GetActorLocation());
-		BlackboardComp->SetValueAsVector(AICon->PointOfInterestDirectionKey, NextPoint->GetActorLocation() + NextPoint->GetActorForwardVector()*100);
+
 
 		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("PointsOfInterest count = %d"), PointsOfInterest.Num()));
 		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White,  BlackboardComp->GetValueAsVector(AICon->LocationToGoKey).ToCompactString());

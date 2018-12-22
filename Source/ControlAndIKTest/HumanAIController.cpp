@@ -21,10 +21,11 @@ AHumanAIController::AHumanAIController()
 	LocationToGoKey = "LocationToGo";
 	PointOfInterestKey = "PointOfInterest";
 	PointOfInterestDirectionKey = "PointOfInterestDirection";
-	CrawlerKey = "Crawler";
+	CrawlerLastKnownLocationKey = "CrawlerLastKnownLocation";
 	StrikePositionKey = "StrikePosition";
 	StrikeTargetKey = "StrikeTarget";
 	StrikeProgressKey = "StrikeProgress";
+	ReadyForActionKey = "ReadyForAction";
 }
 
 void AHumanAIController::Possess(APawn* Pawn)

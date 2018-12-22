@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
+
 #include "HumanSenseComponent.generated.h"
 /**
  * 
@@ -38,28 +39,49 @@ public:
 	void OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 
-	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = SensesSetup)
 	float SenseRadius;
 
-	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SensesSetup)
 	float FieldOfView;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Senses)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SensesSetup)
 	float TensionThreshold;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SensesSetup)
+	bool SHOW_DEBUG_INFO;
+
+
+	UFUNCTION(BlueprintCallable, Category = Senses)
+	void UpdateVision();
+
+	UFUNCTION(BlueprintCallable, Category = Senses)
+	bool IsThisActorVisible(AActor* Target);
+
 
 	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
 	float Tension;
 
-
-	UFUNCTION(BlueprintCallable, Category = Senses)
-	bool CheckVision(AActor* Target);
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
+	bool BodyInSight;
 	
-	AWallCrawler* CrawlerTracker;
-	//TArray<AHuman*> NearbyHumans;
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
+	bool CrawlerInSight;
+
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Senses)
+	FVector CrawlerLastKnownLocation;
+
+	// Collision parameters for vision ray casts
+	FCollisionQueryParams CollisionParameters;
+
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Senses)
-	AWallCrawler* GetCrawlerTracker() { return CrawlerTracker; };
+	FVector GetCrawlerLastKnownLocation() { return CrawlerLastKnownLocation; };
 
 	void Disable();
 
+
+
+	void MarkSpot(FVector Point, FColor Colour, float Duration);
+	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
 };

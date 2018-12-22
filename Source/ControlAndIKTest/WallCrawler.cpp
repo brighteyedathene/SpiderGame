@@ -167,7 +167,7 @@ void AWallCrawler::CycleCameraModes()
 		CameraMode = ECameraMode::Orbit;
 		//FQuat OldRotation = CameraBoom->GetRelativeRotationFromWorld(FQuat::Identity);
 		FRotator OldRotator = CameraBoom->GetComponentRotation();
-		LocalPitch = OldRotator.Pitch;
+		LocalPitch = -OldRotator.Pitch;
 		LocalYaw = OldRotator.Yaw;
 	}
 	else
@@ -294,6 +294,12 @@ void AWallCrawler::MoveRotate(const FQuat & CameraQuat)
 	float ModelUpDotCameraRight = FVector::DotProduct(RootComponent->GetUpVector(), CameraRight);
 	float ModelUpDotCameraUp = FVector::DotProduct(RootComponent->GetUpVector(), CameraUp);
 
+	float ModelForwardDotCameraUp = FVector::DotProduct(RootComponent->GetForwardVector(), CameraUp);
+	//float ModelUpDotCameraUp = FVector::DotProduct(RootComponent->GetUpVector(), CameraUp);
+	float ModelRightDotCameraUp = FVector::DotProduct(RootComponent->GetRightVector(), CameraUp);
+
+	//GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::White, FString::Printf(TEXT("ModelUp . CamForward: %f   ModelUp . CamRight: %f   ModelUp . CamUp: %f"), ModelUpDotCameraForward, ModelUpDotCameraRight, ModelUpDotCameraUp));
+
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, 
 	//	FString::Printf(TEXT("ModelUp Dot F, R, U = %f, %f, %f"), ModelUpDotCameraForward, ModelUpDotCameraRight,  ModelUpDotCameraUp));
 
@@ -309,11 +315,13 @@ void AWallCrawler::MoveRotate(const FQuat & CameraQuat)
 	//}
 
 	FVector R = RootComponent->GetComponentLocation();
-	//MarkLine(R, R + FDirection * 15, FColor::Red, 0);
-	//MarkLine(R, R + RDirection * 15, FColor::Green, 0);
 	RDirection = FVector::VectorPlaneProject(FVector::CrossProduct(CameraUp, FDirection), RootComponent->GetUpVector()).GetSafeNormal() * FMath::Sign(ModelUpDotCameraUp);
 
-	//MarkLine(R, R + RDirection * 15, FColor::Yellow, 0);
+	//FDirection = FDirection * fmaxf(FMath::Sign(ModelUpDotCameraForward), FMath::Sign(ModelUpDotCameraUp));
+
+
+	//MarkLine(R, R + FDirection * 15, FColor::Red, 0);
+	//MarkLine(R, R + RDirection * 15, FColor::Green, 0);
 
 	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
 	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
@@ -330,6 +338,18 @@ void AWallCrawler::MoveRotate(const FQuat & CameraQuat)
 
 
 
+#pragma region Visibility
+
+/* Visibility Interface functions **/
+FVector AWallCrawler::GetVisionTargetLocation_Implementation() 
+{
+	return RootComponent->GetComponentLocation();
+}
+
+#pragma endregion Visibility
+
+
+
 #pragma region Health
 
 float AWallCrawler::GetHealth_Implementation()
@@ -340,7 +360,7 @@ float AWallCrawler::GetHealth_Implementation()
 void AWallCrawler::UpdateHealth_Implementation(float Delta)
 {
 	CurrentHealth = fminf(CurrentHealth + Delta, MaxHealth);
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("ouch I recieved %f damage! Now my health is %f"), Delta, CurrentHealth));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString::Printf(TEXT("ouch I recieved %f damage! Now my health is %f"), Delta, CurrentHealth));
 	if (IsDead_Implementation())
 	{
 		Die_Implementation();
@@ -381,7 +401,7 @@ void AWallCrawler::Die_Implementation()
 		//DeathNotice_BPEvent();
 
 		//GetCom
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 	}
 }
 #pragma endregion Health
@@ -402,7 +422,6 @@ void AWallCrawler::Bite()
 		if (Human)
 		{
 			float Damage = Human->GetBiteDamageForBone(Hit.BoneName);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("Bite: ") + Hit.BoneName.ToString());
 			if (Damage > 0)
 			{
 				CurrentBiteDPS = Damage * BiteBaseDamage;
@@ -426,7 +445,7 @@ void AWallCrawler::ContinueBite()
 
 	if (BiteVictim)
 	{
-		MarkLine(BiteRayStart->GetComponentLocation(), BiteTargetActor->GetActorLocation(), FColor::Red, 0);
+		//MarkLine(BiteRayStart->GetComponentLocation(), BiteTargetActor->GetActorLocation(), FColor::Red, 0);
 		if (FVector::Distance(BiteTargetActor->GetActorLocation(), BiteRayStart->GetComponentLocation()) > BiteForceReleaseDistance)
 		{
 			EndBite();
@@ -451,7 +470,7 @@ void AWallCrawler::EndBite()
 
 FHitResult AWallCrawler::TryGetBiteTarget()
 {
-	MarkLine(BiteRayStart->GetComponentLocation(), BiteRayStart->GetComponentLocation() - RootComponent->GetUpVector() * BiteRayLength, FColor::Green, 0);
+	//MarkLine(BiteRayStart->GetComponentLocation(), BiteRayStart->GetComponentLocation() - RootComponent->GetUpVector() * BiteRayLength, FColor::Green, 0);
 
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(this);

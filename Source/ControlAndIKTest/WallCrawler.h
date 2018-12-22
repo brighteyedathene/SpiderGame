@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HealthInterface.h"
+#include "VisibleInterface.h"
 
 #include "GameFramework/Pawn.h"
 #include "CrawlerMovement.h"
@@ -24,7 +25,7 @@ enum class ECameraMode : uint8
 };
 
 UCLASS()
-class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface
+class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface, public IVisibleInterface
 {
 	GENERATED_BODY()
 
@@ -122,6 +123,14 @@ public:
 	void MoveRotate(const FQuat & CameraQuat);
 
 #pragma endregion Camera
+
+
+#pragma region Visibility
+
+	/* Visibility Interface functions **/
+	virtual FVector GetVisionTargetLocation_Implementation() override;
+
+#pragma endregion Visibility
 
 
 #pragma region Health

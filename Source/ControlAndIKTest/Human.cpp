@@ -5,6 +5,10 @@
 #include "HumanGaitControl.h"
 #include "HumanSenseComponent.h"
 #include "MobileTargetActor.h"
+#include "GlobalAuthority.h"
+
+#include "WallCrawler.h"
+
 
 #include "Runtime/Engine/Classes/Engine/TargetPoint.h"
 #include "Runtime/Engine/Classes/Components/CapsuleComponent.h"
@@ -23,19 +27,37 @@ AHuman::AHuman()
 	
 	HumanGaitControl = CreateDefaultSubobject<UHumanGaitControl>("HumanGaitControl");
 
-	HumanSense = CreateDefaultSubobject<UHumanSenseComponent>("HumanSense");
+	// = CreateDefaultSubobject<UHumanSenseComponent>("HumanSense");
+	
+	EyeLocationMarker = CreateDefaultSubobject<USceneComponent>("EyeLocationMarker");
+
+	VisionTargetMarker = CreateDefaultSubobject<USceneComponent>("VisionTargetMarker");
 
 	EffectiveProgressMultiplier = 2.f;
 
 	MaxHealth = 100.f;
 
 	StunDecayDuration = 1.f;
+
+	TensionThreshold = 1.f;
+	TensionCooldownRate = 0.5f;
+}
+
+void AHuman::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	
 }
 
 // Called when the game starts or when spawned
 void AHuman::BeginPlay()
 {
 	Super::BeginPlay();
+
+
+
+	// ATTACHMENTS
 
 	// For some reason it's easier to edit these components if they're not made with CreateDefaultSubobject!
 	UActorComponent* PossibleSkeletalMesh = GetComponentByClass(USkeletalMeshComponent::StaticClass());
@@ -65,12 +87,12 @@ void AHuman::BeginPlay()
 					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString("FAILED to attach StrikeBox to ") + UStrikeBox::SocketMap[StrikeBox->StrikePosition].ToString());
 				}
 			}
-			 
+
 		}
 	}
 	// Sort strike boxes according to priority
 	StrikeBoxes.Sort(UStrikeBox::StrikeBoxCompare);
-	
+
 	// DEBUG List the strike boxes in order 
 	//for (auto & SB : StrikeBoxes)
 	//{
@@ -85,13 +107,25 @@ void AHuman::BeginPlay()
 		if (StrikeLimb)
 		{
 			StrikeLimbMap.Add(StrikeLimb->LimbType, StrikeLimb);
-			
+
 			if (!StrikeLimb->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepWorldTransform, UStrikeLimb::SocketMap[StrikeLimb->LimbType]))
 			{
 				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString("FAILED to attach StrikeLimb to ") + UStrikeLimb::SocketMap[StrikeLimb->LimbType].ToString());
 			}
 		}
 	}
+
+	if (SkeletalMesh)
+	{
+		VisionTargetMarker->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepRelativeTransform, FName("HipsSocket"));
+		EyeLocationMarker->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepRelativeTransform, FName("HeadSocket"));
+		EyeLocationMarker->SetRelativeRotation(FRotator(0, 0, EyeTilt));
+	}
+
+	//StrikeTargetTracker = CreateDefaultSubobject<AMobileTargetActor>("StrikeTargetTracker");
+	StrikeTargetTracker = GetWorld()->SpawnActor<AMobileTargetActor>(AMobileTargetActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+
+	// END ATTACHMENTS
 
 
 	CurrentHealth = MaxHealth;
@@ -121,6 +155,29 @@ void AHuman::Tick(float DeltaTime)
 	{
 		ContinueStrike(DeltaTime);
 	}
+
+
+	// Update Tension, maybe trigger alert
+	if (!IsStunned() && !IsDead_Implementation() && bCrawlerInSight || bDeadBodyInSight || bCrawlerOnSensitiveArea)
+	{
+		Tension = fminf(TensionThreshold, Tension + DeltaTime);
+
+		if (Tension >= TensionThreshold)
+		{
+			GlobalAuthority->SetGlobalAlert();
+			if (bCrawlerInSight || bCrawlerOnSensitiveArea)
+			{
+				GlobalAuthority->SetCrawlerLastKnownLocation(GlobalAuthority->GetCrawlerRealLocation());
+			}
+		}
+	}
+	else
+	{
+		Tension = fmaxf(0, Tension - TensionCooldownRate * DeltaTime);
+	}
+
+	//float InverseTension = 1 - (Tension / TensionThreshold);
+	//DrawDebugSphere(GetWorld(), EyeLocationMarker->GetComponentLocation() + FVector(0,0, 15.f), 5.f, 24, FColor(255, InverseTension*255, InverseTension*255, 1));
 }
 
 // Called to bind functionality to input
@@ -144,6 +201,153 @@ void AHuman::MoveRight(float value)
 	AddMovementInput(FVector::RightVector, value);
 }
 
+
+#pragma region Vision
+
+void AHuman::UpdateVision()
+{
+	DrawDebugCone(GetWorld(),
+		EyeLocationMarker->GetComponentLocation(),
+		EyeLocationMarker->GetUpVector(),
+		500.f,
+		FMath::DegreesToRadians(GetEffectiveFieldOfView()),
+		FMath::DegreesToRadians(GetEffectiveFieldOfView()),
+		4,
+		FColor::White,
+		false,
+		0,
+		0,
+		0.1f);
+
+
+	if (!GlobalAuthority)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Oopsie,no global authority"));
+		return;
+	}
+
+	bool DeadBodySeen = false;
+	bool CrawlerSeen = false;
+
+	// look for humans
+	for (auto & FellowHuman : GlobalAuthority->Humans)
+	{
+		if (FellowHuman == this)
+		{
+			continue;
+		}
+
+		if (IsThisActorVisible(Cast<AActor>(FellowHuman)))
+		{
+			if (FellowHuman->IsDead_Implementation())
+			{
+				DeadBodySeen = true;
+			}
+			else if(FellowHuman->IsStunned())
+			{
+				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Feeling ok bud?"));
+
+			}
+		}
+	}
+
+	// look for crawler
+	if (IsThisActorVisible((AActor*)GlobalAuthority->Crawler))
+	{
+		float Distance = FVector::Distance(EyeLocationMarker->GetComponentLocation(), GlobalAuthority->GetCrawlerRealLocation());
+		if (Distance < GetEffectiveIdentifyCrawlerRange())
+		{
+			CrawlerSeen = true;
+			//HumanGaitControl->MarkLine(EyeLocationMarker->GetComponentLocation(), GlobalAuthority->GetCrawlerRealLocation(), FColor::Red, 0);
+		}
+		else
+		{
+			//// illustrate crawler range
+			//FVector Diff = GlobalAuthority->GetCrawlerRealLocation() - EyeLocationMarker->GetComponentLocation();
+			//FVector Eye = EyeLocationMarker->GetComponentLocation();
+			//HumanGaitControl->MarkLine(Eye, Eye + Diff, FColor::Yellow, 0);
+			//HumanGaitControl->MarkLine(Eye, Eye + Diff.GetSafeNormal() * IdentifyCrawlerRange, FColor::Red, 0);
+
+		}
+	}
+
+	bCrawlerInSight = CrawlerSeen;
+	bDeadBodyInSight = DeadBodySeen;
+}
+
+bool AHuman::IsThisActorVisible(AActor* Target)
+{
+	if (!Target)
+	{
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Tried to look at null"));
+		return false;
+	}
+
+	// Get exact viewing target
+	FVector TargetLocation;
+	IVisibleInterface* VisibleInterface = Cast<IVisibleInterface>(Target);
+	if (VisibleInterface)
+	{
+		TargetLocation = VisibleInterface->GetVisionTargetLocation_Implementation();
+	}
+	else
+	{
+		TargetLocation = Target->GetActorLocation();
+	}
+
+	// Check angle
+	FVector TargetDirection = (TargetLocation - EyeLocationMarker->GetComponentLocation()).GetSafeNormal();
+	float Angle = FMath::RadiansToDegrees(acosf(FVector::DotProduct(TargetDirection, EyeLocationMarker->GetUpVector())));
+	if (Angle > GetEffectiveFieldOfView())
+	{
+		return false;
+	}
+
+	ECollisionChannel TraceChannel = ECollisionChannel::ECC_Visibility;
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this);
+
+	FHitResult Hit;
+	if (GetWorld()->LineTraceSingleByChannel(Hit, EyeLocationMarker->GetComponentLocation(), TargetLocation, TraceChannel, CollisionParameters))
+	{
+		if (Hit.Actor.Get() == Target || Hit.Actor.Get()->GetParentActor() == Target)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+float AHuman::GetEffectiveIdentifyCrawlerRange()
+{
+	if (GlobalAuthority->IsGlobalAlert())
+		return AlertIdentifyCrawlerRange;
+	else
+		return IdentifyCrawlerRange;
+}
+
+
+float AHuman::GetEffectiveFieldOfView()
+{
+	if (GlobalAuthority->IsGlobalAlert())
+		return AlertFieldOfView;
+	else
+		return FieldOfView;
+}
+
+#pragma endregion Vision
+
+
+#pragma region Visibility
+
+FVector AHuman::GetVisionTargetLocation_Implementation()
+{
+	return VisionTargetMarker->GetComponentLocation();
+}
+
+#pragma endregion Visibility
 
 
 #pragma region Health
@@ -181,10 +385,6 @@ void AHuman::Die_Implementation()
 		if (HumanCollider)
 		{
 			HumanCollider->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}
-		if (HumanSense)
-		{
-			HumanSense->Disable();
 		}
 		if (SkeletalMesh)
 		{
@@ -226,10 +426,23 @@ float AHuman::GetBiteDamageForBone(FName BoneName)
 
 void AHuman::UpdateActiveStrikeBox()
 {
+	bool CrawlerFelt = false;
+
 	if (!IsStriking())
 	{
 		ActiveStrikeBox = CheckStrikeBoxes();
 	}
+
+	if (ActiveStrikeBox)
+	{
+		// check sensitivity
+		if (ActiveStrikeBox->Sensitivity > 0)
+		{
+			CrawlerFelt = true;
+		}
+	}
+
+	bCrawlerOnSensitiveArea = CrawlerFelt;
 }
 
 UStrikeBox* AHuman::CheckStrikeBoxes()
@@ -290,9 +503,10 @@ FName AHuman::GetCrawlerBoneName()
 }
 
 
-void AHuman::BeginStrike(FVector Target)
+void AHuman::BeginStrike()
 {
-	StrikeTarget = Target;
+	StrikeTargetTracker->SetActorLocation(GlobalAuthority->GetCrawlerRealLocation());
+	StrikeTargetTracker->AttachToComponent(ActiveStrikeBox, FAttachmentTransformRules::KeepWorldTransform);
 
 	if (!StrikeLimbMap.Contains(ActiveStrikeBox->LimbType))
 	{
@@ -309,7 +523,30 @@ void AHuman::BeginStrike(FVector Target)
 
 void AHuman::ContinueStrike(float DeltaTime)
 {
-	DrawDebugLine(GetWorld(), ActiveStrikeLimb->GetComponentLocation(), StrikeTarget, FColor::Red, false, -1, 0, 0.1f);
+	//DrawDebugLine(GetWorld(), ActiveStrikeLimb->GetComponentLocation(), StrikeTargetTracker->GetActorLocation(), FColor::Red, false, -1, 0, 0.1f);
+	//FCollisionQueryParams CollisionParams;
+	//CollisionParams.AddIgnoredActor(this);
+	//TArray<FHitResult> Hits;
+	//GetWorld()->LineTraceMultiByChannel(Hits, ActiveStrikeLimb->GetComponentLocation(), StrikeTargetTracker->GetActorLocation(), ECC_GameTraceChannel7, CollisionParams);
+	//for (auto & Hit : Hits)
+	//{
+	//	//if (ActiveStrikeLimb->IgnoredBones.Contains(Hit.BoneName))
+	//	//	continue;
+	//
+	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, AActor::GetDebugName(Hit.Actor.Get()) + FString("'s ") + Hit.Component.Get()->GetFName().ToString() + FString(" on the ") + Hit.BoneName.ToString());
+	//
+	//
+	//	if (Cast<AWallCrawler>(Hit.Actor.Get()))
+	//	{
+	//		HumanGaitControl->MarkSpot(Hit.ImpactPoint, FColor::Yellow, 0.5);
+	//	}
+	//	else
+	//	{
+	//		StrikeTargetTracker->SetActorLocation(Hit.ImpactPoint);
+	//		HumanGaitControl->MarkSpot(Hit.ImpactPoint, FColor::Red, 0.5);
+	//	}
+	//}
+	
 
 	StrikeTimer += DeltaTime;
 
@@ -386,6 +623,22 @@ float AHuman::GetStrikeIKWeight()
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("StrikeDuration was 0"));
 		return 0.f;
+	}
+}
+
+FVector AHuman::GetCurrentStrikeTarget()
+{ 
+	if (StrikeTargetTracker)
+	{
+		return StrikeTargetTracker->GetActorLocation();
+	}
+	else if (ActiveStrikeBox)
+	{
+		return ActiveStrikeBox->GetComponentLocation();
+	}
+	else
+	{
+		return FVector(0, 0, 0);
 	}
 }
 
@@ -481,3 +734,13 @@ float AHuman::GetRightFootIKBlend()
 }
 
 #pragma endregion Gait
+
+
+#pragma region Movement
+
+void AHuman::TurnToFaceDirection(FVector Direction)
+{
+	HumanMovement->SetFaceDirection(Direction);
+}
+
+#pragma endregion Movement

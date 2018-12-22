@@ -77,6 +77,9 @@ public:
 	UPROPERTY(Transient)
 	bool bMovementDisabled;
 
+
+	void SetFaceDirection(FVector Direction);
+
 protected:
 
 	/** Get max speed in a given direction
@@ -84,6 +87,15 @@ protected:
 	*/
 	float GetMaxSpeed(FVector Direction);
 	void TurnToFaceDirection(float DeltaTime, FVector Direction);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AI)
+	float TurnArrivalThreshold;
+
+	UPROPERTY(Transient)
+	bool bUseGivenDirection;
+	
+	UPROPERTY(Transient)
+	FVector GivenDirection;
 
 	void StickToGround();
 };

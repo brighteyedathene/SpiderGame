@@ -35,6 +35,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
 	ELimb LimbType;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	TArray<FName> IgnoredBones;
+
 	UFUNCTION()
 	void OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
@@ -44,6 +47,7 @@ public:
 	bool bHitboxActive;
 
 	static TMap<ELimb, FName> SocketMap;
+
 
 protected:
 
