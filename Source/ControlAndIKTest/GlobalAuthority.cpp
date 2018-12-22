@@ -6,6 +6,7 @@
 #include "WallCrawler.h"
 #include "Human.h"
 
+#include "Runtime/Engine/Classes/Engine/World.h"
 #include "TensionMeterComponent.h"
 
 // Sets default values
@@ -22,6 +23,8 @@ void AGlobalAuthority::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	//TheGlobalAuthority = this;
+
 	// Gather humans and let them know who is the global authority (it's this)
 	TArray<AActor*> HumanActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AHuman::StaticClass(), HumanActors);
@@ -31,7 +34,7 @@ void AGlobalAuthority::BeginPlay()
 		if (Human)
 		{
 			Humans.Add(Human);
-			Human->SetGlobalAuthority(this);
+			//Human->SetGlobalAuthority(this);
 		}
 	}
 
@@ -159,4 +162,16 @@ AHuman* AGlobalAuthority::GetNearestLivingHuman(FVector ThisLocation, AHuman* Ig
 	}
 
 	return ClosestHuman;
+}
+
+
+AGlobalAuthority* AGlobalAuthority::TheGlobalAuthority;
+
+AGlobalAuthority* AGlobalAuthority::GetGlobalAuthority(UObject* AnyObjectInWorld)
+{
+	if(!TheGlobalAuthority)
+	{
+		TheGlobalAuthority = AnyObjectInWorld->GetWorld()->SpawnActor<AGlobalAuthority>(AGlobalAuthority::StaticClass());
+	}
+	return TheGlobalAuthority;
 }

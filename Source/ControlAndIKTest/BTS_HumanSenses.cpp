@@ -5,7 +5,6 @@
 #include "HumanAIController.h"
 #include "Human.h"
 #include "GlobalAuthority.h"
-#include "HumanSenseComponent.h"
 
 
 
@@ -46,13 +45,13 @@ void UBTS_HumanSenses::TickNode(UBehaviorTreeComponent & OwnerComp, uint8 * Node
 
 		// Check vision
 		Human->UpdateVision();
-
+		
 		// Try to feel crawler
 		Human->UpdateActiveStrikeBox();
 		if (Human->ActiveStrikeBox)
 		{
 			BlackboardComp->SetValueAsEnum(AICon->StrikePositionKey, (uint8)Human->ActiveStrikeBox->StrikePosition);
-			BlackboardComp->SetValueAsVector(AICon->CrawlerLastKnownLocationKey, Human->GlobalAuthority->GetCrawlerLastKnownLocation());
+			BlackboardComp->SetValueAsVector(AICon->CrawlerLastKnownLocationKey, AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerLastKnownLocation());
 		}
 		else
 		{

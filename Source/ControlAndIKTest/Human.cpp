@@ -3,7 +3,6 @@
 #include "Human.h"
 #include "HumanMovement.h"
 #include "HumanGaitControl.h"
-#include "HumanSenseComponent.h"
 #include "MobileTargetActor.h"
 #include "GlobalAuthority.h"
 
@@ -164,10 +163,10 @@ void AHuman::Tick(float DeltaTime)
 
 		if (Tension >= TensionThreshold)
 		{
-			GlobalAuthority->SetGlobalAlert();
+			AGlobalAuthority::GetGlobalAuthority(this)->SetGlobalAlert();
 			if (bCrawlerInSight || bCrawlerOnSensitiveArea)
 			{
-				GlobalAuthority->SetCrawlerLastKnownLocation(GlobalAuthority->GetCrawlerRealLocation());
+				AGlobalAuthority::GetGlobalAuthority(this)->SetCrawlerLastKnownLocation(AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerRealLocation());
 			}
 		}
 	}
@@ -220,17 +219,11 @@ void AHuman::UpdateVision()
 		0.1f);
 
 
-	if (!GlobalAuthority)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Oopsie,no global authority"));
-		return;
-	}
-
 	bool DeadBodySeen = false;
 	bool CrawlerSeen = false;
 
 	// look for humans
-	for (auto & FellowHuman : GlobalAuthority->Humans)
+	for (auto & FellowHuman : AGlobalAuthority::GetGlobalAuthority(this)->Humans)
 	{
 		if (FellowHuman == this)
 		{
@@ -252,9 +245,9 @@ void AHuman::UpdateVision()
 	}
 
 	// look for crawler
-	if (IsThisActorVisible((AActor*)GlobalAuthority->Crawler))
+	if (IsThisActorVisible((AActor*)AGlobalAuthority::GetGlobalAuthority(this)->Crawler))
 	{
-		float Distance = FVector::Distance(EyeLocationMarker->GetComponentLocation(), GlobalAuthority->GetCrawlerRealLocation());
+		float Distance = FVector::Distance(EyeLocationMarker->GetComponentLocation(), AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerRealLocation());
 		if (Distance < GetEffectiveIdentifyCrawlerRange())
 		{
 			CrawlerSeen = true;
@@ -322,7 +315,7 @@ bool AHuman::IsThisActorVisible(AActor* Target)
 
 float AHuman::GetEffectiveIdentifyCrawlerRange()
 {
-	if (GlobalAuthority->IsGlobalAlert())
+	if (AGlobalAuthority::GetGlobalAuthority(this)->IsGlobalAlert())
 		return AlertIdentifyCrawlerRange;
 	else
 		return IdentifyCrawlerRange;
@@ -331,7 +324,7 @@ float AHuman::GetEffectiveIdentifyCrawlerRange()
 
 float AHuman::GetEffectiveFieldOfView()
 {
-	if (GlobalAuthority->IsGlobalAlert())
+	if (AGlobalAuthority::GetGlobalAuthority(this)->IsGlobalAlert())
 		return AlertFieldOfView;
 	else
 		return FieldOfView;
@@ -505,7 +498,7 @@ FName AHuman::GetCrawlerBoneName()
 
 void AHuman::BeginStrike()
 {
-	StrikeTargetTracker->SetActorLocation(GlobalAuthority->GetCrawlerRealLocation());
+	StrikeTargetTracker->SetActorLocation(AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerRealLocation());
 	StrikeTargetTracker->AttachToComponent(ActiveStrikeBox, FAttachmentTransformRules::KeepWorldTransform);
 
 	if (!StrikeLimbMap.Contains(ActiveStrikeBox->LimbType))

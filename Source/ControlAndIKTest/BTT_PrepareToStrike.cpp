@@ -4,7 +4,6 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "HumanAIController.h"
 #include "Human.h"
-#include "HumanSenseComponent.h"
 #include "WallCrawler.h"
 
 EBTNodeResult::Type UBTT_PrepareToStrike::ExecuteTask(UBehaviorTreeComponent & OwnerComp, uint8 *  NodeMemory)

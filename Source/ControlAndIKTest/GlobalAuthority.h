@@ -83,4 +83,11 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = GlobalReferencing)
 	AHuman* GetNearestLivingHuman(FVector ThisLocation, AHuman* IgnoredHuman = nullptr);
 
+
+
+	static AGlobalAuthority* TheGlobalAuthority;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Globalreferencing)
+	static AGlobalAuthority* GetGlobalAuthority(UObject* AnyObjectInWorld);
+
 };
