@@ -9,6 +9,8 @@
 EBTNodeResult::Type UBTT_PrepareToStrike::ExecuteTask(UBehaviorTreeComponent & OwnerComp, uint8 *  NodeMemory)
 {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("finding new tarfet.."));
+	
+	bNotifyTick = true;
 
 	AHumanAIController * AICon = Cast<AHumanAIController>(OwnerComp.GetAIOwner());
 	AHuman* Human = Cast<AHuman>(AICon->GetPawn());
@@ -21,11 +23,9 @@ EBTNodeResult::Type UBTT_PrepareToStrike::ExecuteTask(UBehaviorTreeComponent & O
 
 			//Human->HumanSense->CrawlerTracker.GetActorLocation();
 			//BlackboardComp->SetValueAsVector(AICon->StrikeTargetKey, Human->HumanSense->CrawlerTracker->GetActorLocation());
-			//BlackboardComp->SetValueAsFloat(AICon->StrikeProgressKey, 0);
+			BlackboardComp->SetValueAsFloat(AICon->StrikeChargeKey, 0);
 
-			Human->BeginStrike();
-
-			return EBTNodeResult::Succeeded;
+			return EBTNodeResult::InProgress;
 		}
 		else
 		{
@@ -39,3 +39,36 @@ EBTNodeResult::Type UBTT_PrepareToStrike::ExecuteTask(UBehaviorTreeComponent & O
 
 
 
+void UBTT_PrepareToStrike::TickTask(UBehaviorTreeComponent & OwnerComp, uint8 * NodeMemory, float DeltaSeconds)
+{
+	AHumanAIController * AICon = Cast<AHumanAIController>(OwnerComp.GetAIOwner());
+	AHuman* Human = Cast<AHuman>(AICon->GetPawn());
+	if (AICon && Human)
+	{
+		UBlackboardComponent* BlackboardComp = AICon->GetBlackboardComp();
+
+		if (Human->ActiveStrikeBox && !Human->IsStunned())
+		{
+			float CurrentCharge = BlackboardComp->GetValueAsFloat(AICon->StrikeChargeKey);
+			float NewCharge = CurrentCharge + DeltaSeconds;
+
+			if (NewCharge > StrikeChargeTime)
+			{
+				FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+			}
+			else
+			{
+				BlackboardComp->SetValueAsFloat(AICon->StrikeChargeKey, NewCharge);
+			}
+		}
+		else
+		{
+			FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+		}
+	}
+	else
+	{
+		// Failed to cast to AICon or Human
+		FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+	}
+}

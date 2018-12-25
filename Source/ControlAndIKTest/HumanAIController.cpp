@@ -22,10 +22,12 @@ AHumanAIController::AHumanAIController()
 	PointOfInterestKey = "PointOfInterest";
 	PointOfInterestDirectionKey = "PointOfInterestDirection";
 	CrawlerLastKnownLocationKey = "CrawlerLastKnownLocation";
+	CrawlerLastKnownLocationValidKey = "CrawlerLastKnownLocationValid";
 	StrikePositionKey = "StrikePosition";
 	StrikeTargetKey = "StrikeTarget";
-	StrikeProgressKey = "StrikeProgress";
+	StrikeChargeKey = "StrikeCharge";
 	ReadyForActionKey = "ReadyForAction";
+	CrawlerInSightKey = "CrawlerInSight";
 }
 
 void AHumanAIController::Possess(APawn* Pawn)
@@ -33,7 +35,6 @@ void AHumanAIController::Possess(APawn* Pawn)
 	Super::Possess(Pawn);
 
 	AHuman* Human = Cast<AHuman>(Pawn);
-
 	if (Human)
 	{
 		//GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::White, TEXT("Possessing Human!"));

@@ -296,6 +296,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Movement)
 	void TurnToFaceDirection(FVector Direction);
 
+	UFUNCTION(BlueprintCallable, Category = Movement)
+	void TurnToFaceVelocity();
+
 #pragma endregion Movement
 
 };

@@ -19,13 +19,10 @@ EBTNodeResult::Type UBTT_ExecuteStrike::ExecuteTask(UBehaviorTreeComponent & Own
 	{
 		UBlackboardComponent* BlackboardComp = AICon->GetBlackboardComp();
 
-		if (Human->IsStriking())
+		if (!Human->IsStriking())
 		{
+			Human->BeginStrike();
 			return EBTNodeResult::InProgress;
-		}
-		else
-		{
-			return EBTNodeResult::Succeeded;
 		}
 	}
 	return EBTNodeResult::Failed;
