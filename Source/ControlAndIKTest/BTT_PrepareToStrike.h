@@ -16,6 +16,9 @@ class CONTROLANDIKTEST_API UBTT_PrepareToStrike : public UBTTaskNode
 	
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent & OwnerComp, uint8 * NodeMemory) override;
 
+	virtual void TickTask(UBehaviorTreeComponent & OwnerComp, uint8 * NodeMemory, float DeltaSeconds) override;
 	
-	
+
+	UPROPERTY(EditAnywhere, Category = Strike)
+	float StrikeChargeTime;
 };

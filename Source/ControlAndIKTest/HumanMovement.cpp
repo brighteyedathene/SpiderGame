@@ -22,7 +22,6 @@ UHumanMovement::UHumanMovement(const FObjectInitializer& ObjectInitializer)
 
 	ResetMoveState();
 
-	TurnArrivalThreshold = 0.1;
 }
 
 void UHumanMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -184,24 +183,10 @@ void UHumanMovement::TurnToFaceDirection(float DeltaTime, FVector Direction)
 	float CurrentYaw = UpdatedComponent->GetComponentRotation().Yaw;
 	float TargetYaw = Direction.Rotation().Yaw;
 	float YawDiff = ReduceAngle180(TargetYaw - CurrentYaw);
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, FString::Printf(TEXT("CurrentYaw = %f"), CurrentYaw));
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, FString::Printf(TEXT("TargetYaw = %f"), TargetYaw));
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("YawDiff = %f"), YawDiff));
-
 	float MaxTurnThisFrame = MaxTurnSpeed * DeltaTime;
 	CurrentTurnSpeed = FMath::Clamp(YawDiff, -MaxTurnThisFrame, MaxTurnThisFrame);
 
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("TurnSpeed = %f"), CurrentTurnSpeed));
-
 	UpdatedComponent->AddRelativeRotation(FRotator(0, CurrentTurnSpeed, 0), true);
-
-	if (bUseGivenDirection)
-	{
-		if (fabsf(YawDiff) < TurnArrivalThreshold)
-		{
-			bUseGivenDirection = false;
-		}
-	}
 }
 
 void UHumanMovement::StickToGround()
@@ -233,4 +218,8 @@ void UHumanMovement::SetFaceDirection(FVector Direction)
 {
 	bUseGivenDirection = true;
 	GivenDirection = Direction;
+}
+void UHumanMovement::SetFaceVelocity()
+{
+	bUseGivenDirection = false;
 }

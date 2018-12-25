@@ -79,6 +79,7 @@ public:
 
 
 	void SetFaceDirection(FVector Direction);
+	void SetFaceVelocity();
 
 protected:
 
@@ -87,9 +88,6 @@ protected:
 	*/
 	float GetMaxSpeed(FVector Direction);
 	void TurnToFaceDirection(float DeltaTime, FVector Direction);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AI)
-	float TurnArrivalThreshold;
 
 	UPROPERTY(Transient)
 	bool bUseGivenDirection;

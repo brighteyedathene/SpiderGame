@@ -38,7 +38,10 @@ public:
 	FName PointOfInterestDirectionKey;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
-	FName CrawlerLastKnownLocationKey;
+	FName CrawlerLastKnownLocationKey;	
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName CrawlerLastKnownLocationValidKey;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
 	FName StrikePositionKey;
@@ -47,10 +50,13 @@ public:
 	FName StrikeTargetKey;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
-	FName StrikeProgressKey;
+	FName StrikeChargeKey;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
 	FName ReadyForActionKey;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	FName CrawlerInSightKey;
 
 	APointOfInterestSet* PointOfInterestSet;
 };

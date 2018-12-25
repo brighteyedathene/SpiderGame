@@ -45,7 +45,10 @@ void UBTS_HumanSenses::TickNode(UBehaviorTreeComponent & OwnerComp, uint8 * Node
 
 		// Check vision
 		Human->UpdateVision();
-		
+		BlackboardComp->SetValueAsBool(AICon->CrawlerInSightKey, Human->bCrawlerInSight);
+
+
+
 		// Try to feel crawler
 		Human->UpdateActiveStrikeBox();
 		if (Human->ActiveStrikeBox)
@@ -57,6 +60,10 @@ void UBTS_HumanSenses::TickNode(UBehaviorTreeComponent & OwnerComp, uint8 * Node
 		{
 			BlackboardComp->SetValueAsEnum(AICon->StrikePositionKey, (uint8)EStrikePosition::None);
 		}
+
+		// Update CrawlerLastKnownLocation Keys from global authority
+		BlackboardComp->SetValueAsBool(AICon->CrawlerLastKnownLocationValidKey, AGlobalAuthority::GetGlobalAuthority(this)->IsCrawlerLastKnownLocationValid());
+		BlackboardComp->SetValueAsVector(AICon->CrawlerLastKnownLocationKey, AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerLastKnownLocation());
 		
 	}
 }

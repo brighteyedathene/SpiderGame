@@ -116,6 +116,8 @@ void AHuman::BeginPlay()
 
 	if (SkeletalMesh)
 	{
+		VisionTargetMarker->SetRelativeLocation(FVector(0, 0, 0));
+		EyeLocationMarker->SetRelativeLocation(FVector(0, 0, 0));
 		VisionTargetMarker->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepRelativeTransform, FName("HipsSocket"));
 		EyeLocationMarker->AttachToComponent(SkeletalMesh, FAttachmentTransformRules::KeepRelativeTransform, FName("HeadSocket"));
 		EyeLocationMarker->SetRelativeRotation(FRotator(0, 0, EyeTilt));
@@ -498,8 +500,16 @@ FName AHuman::GetCrawlerBoneName()
 
 void AHuman::BeginStrike()
 {
+	
 	StrikeTargetTracker->SetActorLocation(AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerRealLocation());
-	StrikeTargetTracker->AttachToComponent(ActiveStrikeBox, FAttachmentTransformRules::KeepWorldTransform);
+	if (ActiveStrikeBox->bDetectionDependsOnBone && ActiveStrikeBox->DetectionBoneNames.Contains(FName("None")))
+	{
+		StrikeTargetTracker->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
+	else
+	{
+		StrikeTargetTracker->AttachToComponent(ActiveStrikeBox, FAttachmentTransformRules::KeepWorldTransform);
+	}
 
 	if (!StrikeLimbMap.Contains(ActiveStrikeBox->LimbType))
 	{
@@ -734,6 +744,11 @@ float AHuman::GetRightFootIKBlend()
 void AHuman::TurnToFaceDirection(FVector Direction)
 {
 	HumanMovement->SetFaceDirection(Direction);
+}
+
+void AHuman::TurnToFaceVelocity()
+{
+	HumanMovement->SetFaceVelocity();
 }
 
 #pragma endregion Movement
