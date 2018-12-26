@@ -152,7 +152,6 @@ void AHuman::Tick(float DeltaTime)
 		HumanGaitControl->UpdateGait(HumanMovement->GetVelocity(), HumanMovement->GetVelocity().Size() / HumanMovement->MaxSpeed);
 	}
 
-	HumanMovement->ManualTick(DeltaTime);
 
 	if (IsStriking())
 	{
