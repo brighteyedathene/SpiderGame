@@ -21,7 +21,9 @@ enum class ECrawlerState : uint8
 	/** Jumping (still rising) */
 	Jumping,
 	/** Rolling (Not clinging) */
-	Rolling
+	Rolling,
+	/** Getting knocked around */
+	Knockback
 };
 
 
@@ -168,6 +170,15 @@ public:
 #pragma endregion Rolling
 
 
+#pragma region Knockback
+
+	UPROPERTY(Transient)
+	float KnockbackDuration;
+
+	void ApplyKnockBack(FVector NewKnockbackVelocity, float NewKnockbackDuration);
+
+#pragma endregion Knockback
+
 
 	ECrawlerState CrawlerState;
 	void SetFalling() { CrawlerState = ECrawlerState::Falling; };
@@ -181,6 +192,10 @@ public:
 
 	void SetRolling() { CrawlerState = ECrawlerState::Rolling; AirTimer = 0.f; };
 	bool IsRolling() { return CrawlerState == ECrawlerState::Rolling; };
+
+	void SetKnockback() { CrawlerState = ECrawlerState::Knockback; AirTimer = 0.f; };
+	bool IsInKnockback() { return CrawlerState == ECrawlerState::Knockback; };
+
 
 	FVector GetVelocity() { return Velocity; };
 

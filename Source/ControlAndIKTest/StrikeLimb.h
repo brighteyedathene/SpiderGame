@@ -56,4 +56,10 @@ protected:
 	/* Damage on hit */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
 	float Damage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	float KnockbackSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Strike)
+	float KnockbackDuration;
 };
