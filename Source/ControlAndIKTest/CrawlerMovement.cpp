@@ -137,7 +137,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 		SetRolling();
 	}
 
-	if (!IsJumping() && !IsFalling() && bJumpInProgress)
+	if (!IsJumping() && !IsFalling() && !IsInKnockback() && bJumpInProgress)
 	{
 		AddJumpVelocity();
 		SetJumping();
@@ -266,7 +266,20 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 			SetFalling();
 
 		ApplyControlInputToVelocity(DeltaTime);
+		break;
 
+
+	case ECrawlerState::Knockback:
+		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
+		ApplyControlInputToVelocity(DeltaTime);
+
+		if (AirTimer > KnockbackDuration)
+		{
+			SetFalling();
+		}
+		AirTimer += DeltaTime;
+
+		break;
 	}
 
 
@@ -318,7 +331,7 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 	WorkingVelocity = WorkingVelocity.GetClampedToMaxSize(NewMaxSpeed);
 
 	// Apply gravity
-	if (IsFalling())
+	if (IsFalling() || IsInKnockback())
 	{
 		WorkingVelocity.Z = fmaxf(Velocity.Z - GetFallingGravity() * DeltaTime, -TerminalVelocity);
 	}
@@ -345,6 +358,9 @@ void UCrawlerMovement::EndRoll()
 {
 	bWantToRoll = false;
 }
+
+
+
 
 void UCrawlerMovement::MaybeStartJump()
 {
@@ -377,6 +393,18 @@ float UCrawlerMovement::GetFallingGravity()
 {
 	return 2 * MaxJumpHeight / (MaxFallTime * MaxFallTime);
 }
+
+
+
+void UCrawlerMovement::ApplyKnockBack(FVector NewKnockbackVelocity, float NewKnockbackDuration)
+{
+	Velocity += NewKnockbackVelocity;
+	KnockbackDuration = NewKnockbackDuration;
+	SetKnockback();
+}
+
+
+
 
 float UCrawlerMovement::GetAcceleration()
 {

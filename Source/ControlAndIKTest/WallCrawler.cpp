@@ -404,6 +404,14 @@ void AWallCrawler::Die_Implementation()
 		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UWAAA!<dead>"));
 	}
 }
+
+
+void AWallCrawler::ApplyKnockBack(FVector KnockbackVelocity, float KnockbackDuration)
+{
+	EndBite();
+	CrawlerMovement->ApplyKnockBack(KnockbackVelocity, KnockbackDuration);
+}
+
 #pragma endregion Health
 
 

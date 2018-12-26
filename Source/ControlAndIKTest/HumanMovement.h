@@ -18,7 +18,6 @@ class CONTROLANDIKTEST_API UHumanMovement : public UPawnMovementComponent
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void ApplyControlInputToVelocity(float DeltaTime);
 	virtual bool ResolvePenetrationImpl(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotationQuat) override;
-	
 
 
 public:

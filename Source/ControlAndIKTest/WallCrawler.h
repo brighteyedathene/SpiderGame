@@ -139,6 +139,9 @@ public:
 	virtual bool IsDead_Implementation() override;
 	virtual void Die_Implementation() override;
 
+	UFUNCTION(BlueprintCallable, Category = Health)
+	void ApplyKnockBack(FVector KnockbackVelocity, float KnockbackDuration);
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Health)
 	TArray<UStaticMeshComponent*> RagdollMeshes;
