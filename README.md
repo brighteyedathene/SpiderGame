@@ -1,6 +1,6 @@
 Watch this
 
-[![Gameplay](http://img.youtube.com/vi/kf-FiDk9EjwUrI/0.jpg)](https://www.youtube.com/watch?v=kf-FiDk9EjwUrI "Gameplay (watch it on youtube)")
+[![Gameplay](http://img.youtube.com/vi/FiDk9EjwUrI/0.jpg)](https://www.youtube.com/watch?v=FiDk9EjwUrI "Gameplay (watch it on youtube)")
 
 [![Gameplay](http://img.youtube.com/vi/kf-zEDzD5NE/0.jpg)](https://www.youtube.com/watch?v=kf-zEDzD5NE "Gameplay (watch it on youtube)")
 
