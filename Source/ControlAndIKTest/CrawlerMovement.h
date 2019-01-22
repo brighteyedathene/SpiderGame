@@ -46,6 +46,13 @@ class CONTROLANDIKTEST_API UCrawlerMovement : public UPawnMovementComponent
 public:
 	bool bShouldUpdate;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Boost)
+	float Boost;
+
+	
+
+
 #pragma region Surface
 	/** Maximum velocity magnitude allowed for the controlled Pawn on a surface. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
@@ -216,8 +223,10 @@ protected:
 
 	float GetAcceleration();
 	float GetDeceleration();
-
 	float GetMaxSpeed();
+
+	float GetTurningBoost();
+
 	bool IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const;
 	
 	/** Set to true when a position correction is applied. Used to avoid recalculating velocity when this occurs. */

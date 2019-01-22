@@ -13,6 +13,8 @@ UCrawlerMovement::UCrawlerMovement(const FObjectInitializer& ObjectInitializer)
 {
 	bShouldUpdate = true;
 
+	Boost = 1;
+
 	MaxSpeedOnSurface = 1200.f;
 	Acceleration = 4000.f;
 	Deceleration = 8000.f;
@@ -182,7 +184,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 			AddInputVector(ClingVector * DeltaTime);
 			AddInputVector(ClimbVector * DeltaTime);
 		}
-		RotateTowardsNormal(LatchNormal, SurfaceRotationAlpha);
+		RotateTowardsNormal(LatchNormal, SurfaceRotationAlpha * Boost);
 		ApplyControlInputToVelocity(DeltaTime);
 
 		if (FVector::Distance(LatchPoint, UpdatedComponent->GetComponentLocation()) > GripLossDistance)
@@ -270,7 +272,7 @@ void UCrawlerMovement::UpdateCrawlerMovementState(float DeltaTime)
 
 
 	case ECrawlerState::Knockback:
-		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha);
+		RotateTowardsNormal(FVector(0, 0, 1), AerialRotationAlpha*0.1);
 		ApplyControlInputToVelocity(DeltaTime);
 
 		if (AirTimer > KnockbackDuration)
@@ -304,7 +306,7 @@ void UCrawlerMovement::ApplyControlInputToVelocity(float DeltaTime)
 		if (WorkingVelocity.SizeSquared() > 0.f)
 		{
 			// Change direction faster than only using acceleration, but never increase velocity magnitude.
-			const float TimeScale = FMath::Clamp(DeltaTime * TurningBoost, 0.f, 1.f);
+			const float TimeScale = FMath::Clamp(DeltaTime * GetTurningBoost(), 0.f, 1.f);
 			WorkingVelocity = WorkingVelocity + (ControlAcceleration * WorkingVelocity.Size() - WorkingVelocity) * TimeScale;
 		}
 	}
@@ -378,7 +380,7 @@ void UCrawlerMovement::MaybeEndJump()
 
 void UCrawlerMovement::AddJumpVelocity()
 {
-	const float InitialJumpSpeed = 2 * MaxJumpHeight / MaxJumpTime;
+	const float InitialJumpSpeed = 2 * MaxJumpHeight * Boost / MaxJumpTime;
 	Velocity += UpdatedComponent->GetUpVector() * InitialJumpSpeed;
 }
 float UCrawlerMovement::GetMinJumpTime()
@@ -411,13 +413,13 @@ float UCrawlerMovement::GetAcceleration()
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
-		return Acceleration;
+		return Acceleration * Boost;
 
 	case ECrawlerState::Rolling:
-		return RollingAcceleration;
+		return RollingAcceleration * Boost;
 
 	default:
-		return AerialAcceleration;
+		return AerialAcceleration * Boost;
 	}
 }
 
@@ -426,13 +428,13 @@ float UCrawlerMovement::GetDeceleration()
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
-		return Deceleration;
+		return Deceleration * Boost;
 
 	case ECrawlerState::Rolling:
-		return RollingDeceleration;
+		return RollingDeceleration * Boost;
 
 	default:
-		return AerialDeceleration;
+		return AerialDeceleration * Boost;
 	}
 }
 
@@ -442,14 +444,19 @@ float UCrawlerMovement::GetMaxSpeed()
 	switch (CrawlerState)
 	{
 	case ECrawlerState::Crawling:
-		return MaxSpeedOnSurface;
+		return MaxSpeedOnSurface * Boost;
 
 	case ECrawlerState::Rolling:
-		return MaxSpeedWhileRolling;
+		return MaxSpeedWhileRolling * Boost;
 
 	default:
-		return MaxSpeedInAir;
+		return MaxSpeedInAir * Boost;
 	}
+}
+
+float UCrawlerMovement::GetTurningBoost()
+{
+	return TurningBoost + Boost;
 }
 
 bool UCrawlerMovement::IsThisExceedingMaxSpeed(float MaxSpeed, FVector Velo) const

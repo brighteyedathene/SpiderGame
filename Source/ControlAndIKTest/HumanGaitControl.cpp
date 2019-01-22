@@ -39,6 +39,9 @@ void UHumanGaitControl::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 
 void UHumanGaitControl::UpdateGait(FVector Velocity, float Intensity)
 {
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Magenta, FString("Normalized Velocity size: ") + FString::SanitizeFloat(Intensity));
+	MovementVector = Velocity.IsNearlyZero() ? FVector(0,0,0) : Velocity.GetSafeNormal() * Intensity;
+
 	// Update foot positions
 	FVector MovementDelta = Velocity * GetWorld()->GetDeltaSeconds();
 	CurrentGaitPosition += MovementDelta.Size();
@@ -97,7 +100,23 @@ void UHumanGaitControl::UpdateGait(FVector Velocity, float Intensity)
 	//DebugDrawFeet();
 }
 
+float UHumanGaitControl::GetForwardMovement()
+{
+	// Find the projection of the MovementVector on to the Forward Vector of this Actor
+	FVector ForwardMovementVector = MovementVector.ProjectOnTo(GetForwardVector());
+	//MarkLine(GetComponentLocation(), GetComponentLocation() + 100 * ForwardMovementVector, FColor::Blue, 0);
+	float Sign = FVector::DotProduct(ForwardMovementVector, GetForwardVector()) < 0 ? -1.f : 1.f;
+	return ForwardMovementVector.Size() * Sign;
+}
 
+float UHumanGaitControl::GetRightMovement()
+{
+	// Find the projection of the MovementVector on to the Forward Vector of this Actor
+	FVector RightMovementVector = MovementVector.ProjectOnTo(GetRightVector());
+	//MarkLine(GetComponentLocation(), GetComponentLocation() + 100 * RightMovementVector, FColor::Green, 0);
+	float Sign = FVector::DotProduct(RightMovementVector, GetRightVector()) < 0 ? -1.f : 1.f;
+	return RightMovementVector.Size() * Sign;
+}
 
 void UHumanGaitControl::DebugDrawFeet()
 {

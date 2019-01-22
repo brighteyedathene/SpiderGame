@@ -14,7 +14,6 @@ class CONTROLANDIKTEST_API UBTS_HumanSenses : public UBTService
 {
 	GENERATED_BODY()
 
-	virtual void OnSearchStart(FBehaviorTreeSearchData & SearchData) override;
 	virtual void TickNode(UBehaviorTreeComponent & OwnerComp, uint8 * NodeMemory, float DeltaSeconds) override;
 
 };

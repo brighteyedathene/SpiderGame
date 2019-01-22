@@ -57,10 +57,13 @@ void UStrikeLimb::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, clas
 	{
 		Crawler->UpdateHealth_Implementation(-Damage);
 
-		//FVector KnockbackVelocity = (OtherActor->GetActorLocation() - GetComponentLocation()).GetSafeNormal() * KnockbackSpeed;
-		FVector KnockbackVelocity = FVector(0, 0, -1) * KnockbackSpeed;
+		if (!Crawler->IsDead_Implementation())
+		{
+			FVector KnockbackVelocity = (OtherActor->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
+			KnockbackVelocity = (KnockbackVelocity + FVector(0, 0, -1)).GetSafeNormal() * KnockbackSpeed;
 
-		Crawler->ApplyKnockBack(KnockbackVelocity, KnockbackDuration);
+			Crawler->ApplyKnockBack(KnockbackVelocity, KnockbackDuration);
+		}
 	}
 	//AHuman* Human = Cast<AHuman>(OtherActor);
 	//if (Human)

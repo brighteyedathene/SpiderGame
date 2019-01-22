@@ -130,7 +130,8 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	FVector IKTargetIntermediate;
 	bool IKTargetInTransit;
 
-	UPROPERTY(EditAnywhere, Category = IK)
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IK)
 	float IKTargetTransitionSpeed;
 	float m_IKTargetTransitionTimer;
 
@@ -145,7 +146,7 @@ class CONTROLANDIKTEST_API AIKArm : public AActor
 	float m_IKUpperArmAngle;
 	float m_IKLowerArmAngle;
 
-public:	
+
 	// Sets default values for this actor's properties
 	AIKArm();
 

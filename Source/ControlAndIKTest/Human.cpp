@@ -4,7 +4,10 @@
 #include "HumanMovement.h"
 #include "HumanGaitControl.h"
 #include "MobileTargetActor.h"
-#include "GlobalAuthority.h"
+
+#include "AssassinationGameState.h"
+#include "HumanAIController.h"
+#include "Stimulus.h"
 
 #include "WallCrawler.h"
 
@@ -54,7 +57,7 @@ void AHuman::BeginPlay()
 {
 	Super::BeginPlay();
 
-
+	//AssassinationState = Cast<AAssassinationGameState>(GetWorld()->GetGameState());
 
 	// ATTACHMENTS
 
@@ -145,6 +148,8 @@ void AHuman::Tick(float DeltaTime)
 	else
 	{
 		HumanMovement->bMovementDisabled = false;
+
+		MarkAsNoLongerInTrouble();
 	}
 
 	if (!IsDead_Implementation() && !IsStunned() && !bStrikeLockedIn)
@@ -158,28 +163,9 @@ void AHuman::Tick(float DeltaTime)
 		ContinueStrike(DeltaTime);
 	}
 
+	UpdateTension(DeltaTime);
 
-	// Update Tension, maybe trigger alert
-	if (!IsStunned() && !IsDead_Implementation() && bCrawlerInSight || bDeadBodyInSight || bCrawlerOnSensitiveArea)
-	{
-		Tension = fminf(TensionThreshold, Tension + DeltaTime);
-
-		if (Tension >= TensionThreshold)
-		{
-			AGlobalAuthority::GetGlobalAuthority(this)->SetGlobalAlert();
-			if (bCrawlerInSight || bCrawlerOnSensitiveArea)
-			{
-				AGlobalAuthority::GetGlobalAuthority(this)->SetCrawlerLastKnownLocation(AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerRealLocation());
-			}
-		}
-	}
-	else
-	{
-		Tension = fmaxf(0, Tension - TensionCooldownRate * DeltaTime);
-	}
-
-	//float InverseTension = 1 - (Tension / TensionThreshold);
-	//DrawDebugSphere(GetWorld(), EyeLocationMarker->GetComponentLocation() + FVector(0,0, 15.f), 5.f, 24, FColor(255, InverseTension*255, InverseTension*255, 1));
+	//PrintStatusVariables();
 }
 
 // Called to bind functionality to input
@@ -192,7 +178,6 @@ void AHuman::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("MoveRight", this, &AHuman::MoveRight);
 }
 
-
 void AHuman::MoveForward(float value)
 {
 	AddMovementInput(FVector::ForwardVector, value);
@@ -204,29 +189,247 @@ void AHuman::MoveRight(float value)
 }
 
 
+
+#pragma region InnerFeeling
+
+void AHuman::UpdateTension(float DeltaTime)
+{
+
+	//if (Tension >= TensionThreshold && !IsStunned() && !IsDead_Implementation())
+	//{
+	//	GetAssassinationState()->SetGlobalAlert(); // Set (or reset) global alert
+	//}
+
+	// Update Tension, maybe trigger alert
+	if (bCrawlerInSight || bCrawlerOnSensitiveArea || bHumanInTroubleInSight || 
+		(GetAssassinationState()->IsGlobalAlert() && ActiveStrikeBox))
+	{
+		Tension = fminf(TensionThreshold, Tension + DeltaTime);
+
+		
+	}
+	else if (!IsStunned())
+	{
+		Tension = fmaxf(GetTensionMin(), Tension - TensionCooldownRate * DeltaTime);
+	}
+	
+	
+}
+
+float AHuman::GetTensionMin()
+{
+	if (IsDead_Implementation())
+	{
+		return 0;
+	}
+	else if (GetAssassinationState()->IsGlobalAlert())
+	{
+		return TensionThreshold * 0.9;
+	}
+	else if (GetAssassinationState()->IsGlobalCaution())
+	{
+		return TensionThreshold * 0.5;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+
+
+void AHuman::AddNewStimulus(EStimulusType Type, FVector Location, AActor* Actor)
+{
+	UStimulus* NewStimulus = NewObject<UStimulus>(UStimulus::StaticClass());
+	NewStimulus->Type = Type;
+	NewStimulus->Location = Location;
+	NewStimulus->Actor = Actor;
+
+	Stimuli.Add(NewStimulus);
+}
+
+void AHuman::PrintStimuli()
+{
+	for (int i = 0; i < Stimuli.Num(); i++)
+	{
+		FString msg = FString("");
+		FColor clr = FColor::White;
+		switch (Stimuli[i]->Type)
+		{
+		case EStimulusType::CrawlerSighting:
+			msg = FString("  CrawlerSighting ");
+			clr = FColor::Red;
+			break;
+		case EStimulusType::TroubleSighting:
+			msg = FString("  TroubleSighting ");
+			clr = FColor::Orange;
+			break;
+		case EStimulusType::BodySighting:
+			msg = FString("  BodySighting ");
+			clr = FColor::Magenta;
+			break;
+		}
+
+		GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() + (i +1) * 23, 1.0f, clr, AActor::GetDebugName(this) + msg + Stimuli[i]->GetLocation().ToCompactString());
+	}
+}
+
+void AHuman::PrintStatusVariables()
+{
+	int Offset = 1;
+	GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() * Offset++, 5.0f, (Tension > 0 ? FColor::Red : FColor::White),
+		AActor::GetDebugName(this) + FString("Tension: ") + FString::SanitizeFloat(Tension));
+
+	GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() * Offset++, 5.0f, (bCrawlerInSight ? FColor::Red : FColor::White),
+		FString(" bCrawlerInSight: ") + (bCrawlerInSight ? "1" : "0"));
+
+	GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() * Offset++, 5.0f, (bCrawlerOnBody ? FColor::Red : FColor::White),
+		FString(" bCrawlerOnBody: ") + (bCrawlerOnBody ? "1" : "0"));
+
+	GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() * Offset++, 5.0f, (bCrawlerOnSensitiveArea ? FColor::Red : FColor::White),
+		FString(" bCrawlerOnSensitiveArea: ") + (bCrawlerOnSensitiveArea ? "1" : "0"));
+
+	GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() * Offset++, 5.0f, (bHumanInTroubleInSight ? FColor::Red : FColor::White),
+		FString(" bHumanInTroubleInSight: ") + (bHumanInTroubleInSight ? "1" : "0"));
+
+	GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() * Offset++, 5.0f, (bDeadBodyInSight ? FColor::Red : FColor::White),
+		FString(" bDeadBodyInSight: ") + (bDeadBodyInSight ? "1" : "0"));
+
+	GEngine->AddOnScreenDebugMessage((uint64)GetUniqueID() * Offset++, 5.0f, (IsStunned() ? FColor::Red : FColor::White),
+		FString(" StunRemaining: ") + FString::SanitizeFloat(StunRemaining));
+}
+
+void AHuman::ProcessStimuli()
+{
+	for (auto & Stimulus : Stimuli)
+	{
+		if (Stimulus->Type == EStimulusType::CrawlerSighting)
+		{
+			TryUpdateLookTarget(Stimulus->GetLocation(), 10);
+
+			// Set (or reset) global alert
+			if (Tension >= TensionThreshold && !IsStunned())
+			{
+				GetAssassinationState()->SetGlobalAlert(); 
+			}
+
+			if (GetAssassinationState()->IsGlobalAlert())
+			{
+				GetAssassinationState()->UpdateCrawlerLastKnownLocationAndVelocity();
+				GetAssassinationState()->SetNewEpicentre(GetAssassinationState()->GetCrawlerPredictedLocation(0.8f));
+			}
+		}
+		else if (Stimulus->Type == EStimulusType::CrawlerFelt)
+		{
+			// Set (or reset) global alert
+			if (Tension >= TensionThreshold && !IsStunned())
+			{
+				GetAssassinationState()->SetGlobalAlert(); 
+			}
+
+			if (GetAssassinationState()->IsGlobalAlert())
+			{
+				GetAssassinationState()->UpdateCrawlerLastKnownLocationAndVelocity();
+				GetAssassinationState()->SetNewEpicentre(GetAssassinationState()->GetCrawlerPredictedLocation(0.8f));
+
+			}
+		}
+		else if (Stimulus->Type == EStimulusType::TroubleSighting)
+		{
+			TryUpdateLookTarget(Stimulus->GetLocation(), 5);
+
+			AHuman* Human = Cast<AHuman>(Stimulus->Actor);
+			if (Human && !Human->bSeenInTrouble)
+			{
+				if (!GetAssassinationState()->IsGlobalAlert())
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, FString("Someone in trouble??"));
+
+					GetAssassinationState()->SetGlobalCaution();
+					//GetAssassinationState()->AddInvestigationPoints(Stimulus->GetLocation(), 3);
+					GetAssassinationState()->SetNewEpicentre(Stimulus->GetLocation());
+
+					//DrawDebugSphere(GetWorld(), Stimulus->GetLocation(), 4, 2, FColor::Orange, true, 5, 0, 4);
+
+					Human->MarkAsSeenInTrouble();
+				}
+			}
+
+		}
+		else if (Stimulus->Type == EStimulusType::BodySighting)
+		{
+			TryUpdateLookTarget(Stimulus->GetLocation(), 3);
+
+			AHuman* Human = Cast<AHuman>(Stimulus->Actor);
+			if (Human && !Human->bSeenAsDeadBody)
+			{
+				if (!GetAssassinationState()->IsGlobalAlert())
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Magenta, FString("A body??"));
+
+
+					GetAssassinationState()->SetGlobalCaution();
+					//GetAssassinationState()->AddInvestigationPoints(Stimulus->GetLocation(), 3);
+					GetAssassinationState()->SetNewEpicentre(Stimulus->GetLocation());
+
+					
+					//DrawDebugSphere(GetWorld(), Stimulus->GetLocation(), 4, 2, FColor::Magenta, true, 5, 0, 4);
+					
+				}
+				Human->MarkAsSeenDead();
+			}
+			
+		}
+	}
+	Stimuli.Reset();
+}
+
+void AHuman::ClearInnerFeeling()
+{
+	bCrawlerInSight = false;
+	bCrawlerOnBody = false;
+	bCrawlerOnSensitiveArea = false;
+	bHumanInTroubleInSight = false;
+	bDeadBodyInSight = false;
+	
+	StunRemaining = 0;
+}
+
+
+#pragma endregion InnerFeeling
+
+
+
 #pragma region Vision
 
 void AHuman::UpdateVision()
 {
-	DrawDebugCone(GetWorld(),
-		EyeLocationMarker->GetComponentLocation(),
-		EyeLocationMarker->GetUpVector(),
-		500.f,
-		FMath::DegreesToRadians(GetEffectiveFieldOfView()),
-		FMath::DegreesToRadians(GetEffectiveFieldOfView()),
-		4,
-		FColor::White,
-		false,
-		0,
-		0,
-		0.1f);
+	//DrawDebugCone(GetWorld(),
+	//	EyeLocationMarker->GetComponentLocation(),
+	//	EyeLocationMarker->GetUpVector(),
+	//	GetEffectiveIdentifyCrawlerRange(),
+	//	FMath::DegreesToRadians(GetEffectiveFieldOfView()),
+	//	FMath::DegreesToRadians(GetEffectiveFieldOfView()),
+	//	20,
+	//	FColor::White,
+	//	false,
+	//	0,
+	//	0,
+	//	0.1f);
 
 
 	bool DeadBodySeen = false;
 	bool CrawlerSeen = false;
+	bool StunnedHumanSeen = false;
 
 	// look for humans
-	for (auto & FellowHuman : AGlobalAuthority::GetGlobalAuthority(this)->Humans)
+	if (!GetAssassinationState())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("Cast to Assassination game state failed during UpdateVision!"));
+		return;
+	}
+
+	for (auto & FellowHuman : GetAssassinationState()->Humans)
 	{
 		if (FellowHuman == this)
 		{
@@ -238,38 +441,68 @@ void AHuman::UpdateVision()
 			if (FellowHuman->IsDead_Implementation())
 			{
 				DeadBodySeen = true;
+				AddNewStimulus(EStimulusType::BodySighting, FellowHuman->GetVisionTargetLocation_Implementation(), FellowHuman);
+				//DrawDebugLine(GetWorld(), EyeLocationMarker->GetComponentLocation(), FellowHuman->GetVisionTargetLocation_Implementation(), FColor::Orange);
+
 			}
 			else if(FellowHuman->IsStunned())
 			{
-				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("Feeling ok bud?"));
-
+				StunnedHumanSeen = true;
+				AddNewStimulus(EStimulusType::TroubleSighting, FellowHuman->EyeLocationMarker->GetComponentLocation(), FellowHuman);
+				//DrawDebugLine(GetWorld(), EyeLocationMarker->GetComponentLocation(), FellowHuman->GetVisionTargetLocation_Implementation(), FColor::Yellow);
 			}
 		}
 	}
 
 	// look for crawler
-	if (IsThisActorVisible((AActor*)AGlobalAuthority::GetGlobalAuthority(this)->Crawler))
+	if (IsThisActorVisible(GetAssassinationState()->Crawler))
 	{
-		float Distance = FVector::Distance(EyeLocationMarker->GetComponentLocation(), AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerRealLocation());
+		float Distance = FVector::Distance(EyeLocationMarker->GetComponentLocation(), GetAssassinationState()->GetCrawlerRealLocation());
 		if (Distance < GetEffectiveIdentifyCrawlerRange())
 		{
 			CrawlerSeen = true;
-			//HumanGaitControl->MarkLine(EyeLocationMarker->GetComponentLocation(), GlobalAuthority->GetCrawlerRealLocation(), FColor::Red, 0);
-		}
-		else
-		{
-			//// illustrate crawler range
-			//FVector Diff = GlobalAuthority->GetCrawlerRealLocation() - EyeLocationMarker->GetComponentLocation();
-			//FVector Eye = EyeLocationMarker->GetComponentLocation();
-			//HumanGaitControl->MarkLine(Eye, Eye + Diff, FColor::Yellow, 0);
-			//HumanGaitControl->MarkLine(Eye, Eye + Diff.GetSafeNormal() * IdentifyCrawlerRange, FColor::Red, 0);
+			AddNewStimulus(EStimulusType::CrawlerSighting, GetAssassinationState()->Crawler->GetVisionTargetLocation_Implementation(), GetAssassinationState()->Crawler);
 
 		}
 	}
 
 	bCrawlerInSight = CrawlerSeen;
 	bDeadBodyInSight = DeadBodySeen;
+	bHumanInTroubleInSight = StunnedHumanSeen;
+
+	if (bCrawlerInSight || bDeadBodyInSight || bHumanInTroubleInSight)
+	{
+		bLookTargetValid = true;
+	}
+	else if (Tension == GetTensionMin())
+	{
+		bLookTargetValid = false;
+		LookTargetPriority = 0;
+	}
+	//if (!bLookTargetValid && Tension == GetTensionMin())
+	//{
+	//	LookTargetPriority = 0;
+	//}
 }
+
+void AHuman::TryUpdateLookTarget(FVector NewTarget, int Priority)
+{
+	if (Priority > LookTargetPriority)
+	{
+		LookTarget = NewTarget;
+		LookTargetPriority = Priority;
+	}
+	else if (Priority == LookTargetPriority)
+	{
+		if (FVector::DistSquared(GetActorLocation(), NewTarget) < FVector::DistSquared(GetActorLocation(), LookTarget))
+		{
+			LookTarget = NewTarget;
+			LookTargetPriority = Priority;
+		}
+	}
+}
+
+
 
 bool AHuman::IsThisActorVisible(AActor* Target)
 {
@@ -318,7 +551,7 @@ bool AHuman::IsThisActorVisible(AActor* Target)
 
 float AHuman::GetEffectiveIdentifyCrawlerRange()
 {
-	if (AGlobalAuthority::GetGlobalAuthority(this)->IsGlobalAlert())
+	if (GetAssassinationState()->IsGlobalAlert())
 		return AlertIdentifyCrawlerRange;
 	else
 		return IdentifyCrawlerRange;
@@ -327,10 +560,23 @@ float AHuman::GetEffectiveIdentifyCrawlerRange()
 
 float AHuman::GetEffectiveFieldOfView()
 {
-	if (AGlobalAuthority::GetGlobalAuthority(this)->IsGlobalAlert())
+	if (GetAssassinationState()->IsGlobalAlert())
 		return AlertFieldOfView;
 	else
 		return FieldOfView;
+}
+
+
+FVector AHuman::GetLookTarget()
+{
+	if (IsLookTargetValid())
+	{
+		return LookTarget;
+	}
+	else
+	{
+		return EyeLocationMarker->GetComponentLocation() + GetActorForwardVector();
+	}
 }
 
 #pragma endregion Vision
@@ -358,6 +604,7 @@ void AHuman::UpdateHealth_Implementation(float Delta)
 	if (Delta < 0)
 	{
 		StunRemaining = StunDecayDuration;
+		Tension = TensionThreshold;
 	}
 
 	CurrentHealth = fminf(CurrentHealth + Delta, MaxHealth);
@@ -395,6 +642,8 @@ void AHuman::Die_Implementation()
 			StrikeLimbElement.Value->EndStrike();
 		}
 
+		ClearInnerFeeling();
+
 		Execute_DeathNotice_BPEvent(this);
 
 		//GetCom
@@ -426,7 +675,7 @@ void AHuman::UpdateActiveStrikeBox()
 
 	if (!IsStriking())
 	{
-		ActiveStrikeBox = CheckStrikeBoxes();
+		ActiveStrikeBox = FindActiveStrikeBox();
 	}
 
 	if (ActiveStrikeBox)
@@ -435,15 +684,20 @@ void AHuman::UpdateActiveStrikeBox()
 		if (ActiveStrikeBox->Sensitivity > 0)
 		{
 			CrawlerFelt = true;
+			AddNewStimulus(EStimulusType::CrawlerFelt, ActiveStrikeBox->GetComponentLocation());
 		}
 	}
 
 	bCrawlerOnSensitiveArea = CrawlerFelt;
 }
 
-UStrikeBox* AHuman::CheckStrikeBoxes()
+UStrikeBox* AHuman::FindActiveStrikeBox()
 {
 	FName CrawlerBoneName = GetCrawlerBoneName();
+
+	// Do not activate strikebox when crawler is on the other side of a wall!
+	if (CrawlerBoneName == FName("None") && !bCrawlerInSight)
+		return nullptr;
 
 	for (auto & StrikeBox : StrikeBoxes)
 	{
@@ -455,7 +709,7 @@ UStrikeBox* AHuman::CheckStrikeBoxes()
 	return nullptr;
 }
 
-bool AHuman::IsCrawlerOnBody()
+void AHuman::CheckCrawlerOnBody()
 {
 	TArray<AActor*> ChildActors;
 	//GetAllChildActors(ChildActors, true);
@@ -467,13 +721,15 @@ bool AHuman::IsCrawlerOnBody()
 		{
 			if (MTA->MTAOwnerType == EMTAOwnerType::CrawlerBody)
 			{
-				return true;
+				bCrawlerOnBody = true;
+				return;
 			}
 		}
 		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Orange, AActor::GetDebugName(Child));
 
 	}
-	return false;
+	bCrawlerOnBody = false;
+	return;
 }
 
 FName AHuman::GetCrawlerBoneName()
@@ -501,8 +757,14 @@ FName AHuman::GetCrawlerBoneName()
 
 void AHuman::BeginStrike()
 {
-	
-	StrikeTargetTracker->SetActorLocation(AGlobalAuthority::GetGlobalAuthority(this)->GetCrawlerRealLocation());
+	if (!GetAssassinationState())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Game state not founnd"));
+		return;
+	}
+
+
+	StrikeTargetTracker->SetActorLocation(GetAssassinationState()->GetCrawlerRealLocation());
 	if (ActiveStrikeBox->bDetectionDependsOnBone && ActiveStrikeBox->DetectionBoneNames.Contains(FName("None")))
 	{
 		StrikeTargetTracker->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
@@ -523,6 +785,8 @@ void AHuman::BeginStrike()
 	StrikeTimer = 0;
 
 	bStrikeLockedIn = true;
+
+	StrikeBegan_BPEvent();
 }
 
 void AHuman::ContinueStrike(float DeltaTime)
@@ -674,6 +938,15 @@ bool AHuman::IsStriking()
 
 #pragma region Gait
 
+float AHuman::GetForwardMovement()
+{
+	return HumanGaitControl->GetForwardMovement();
+}
+
+float AHuman::GetRightMovement()
+{
+	return HumanGaitControl->GetRightMovement();
+}
 
 float AHuman::GetGaitFraction()
 {
@@ -750,6 +1023,26 @@ void AHuman::TurnToFaceDirection(FVector Direction)
 void AHuman::TurnToFaceVelocity()
 {
 	HumanMovement->SetFaceVelocity();
+	//HumanMovement->SetFaceDirection(GetActorLocation() - GetHumanAI()->GetImmediateMoveDestination());
 }
 
 #pragma endregion Movement
+
+#pragma region GlobalReferencing
+
+AAssassinationGameState* AHuman::GetAssassinationState()
+{
+	//if(!AssassinationState)
+	//	AssassinationState = Cast<AAssassinationGameState>(GetWorld()->GetGameState());
+	//return AssassinationState;
+	return Cast<AAssassinationGameState>(GetWorld()->GetGameState());
+}
+
+
+AHumanAIController* AHuman::GetHumanAI()
+{
+	return Cast<AHumanAIController>(GetController());
+}
+
+
+#pragma endregion GlobalReferencing

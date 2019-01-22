@@ -44,11 +44,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float GaitFraction;
 
+	// IK variables
 	FTransform LeftFoot;
 	FTransform RightFoot;
 	float LeftFootIKBlend;
 	float RightFootIKBlend;
 	bool bLeftFootPlanted;
+
+	// 4-way motion variables
+	FVector MovementVector;
+
+	float GetForwardMovement();
+	float GetRightMovement();
 
 	bool CheckConstraints();
 

@@ -4,6 +4,8 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Runtime/Engine/Classes/GameFramework/SpringArmComponent.h"
+
 #include "Components/SphereComponent.h"
 
 #include "Human.h"
@@ -55,6 +57,9 @@ AWallCrawler::AWallCrawler()
 	FollowCameraDistance = 30.f;
 	MaxFollowCameraDistance = 30.f;
 
+	FollowCameraLagMaxDistance = 2.f;
+	OrbirCameraLagMaxDistance = 30.f;
+
 	BiteRayStart = CreateDefaultSubobject<USceneComponent>(TEXT("BiteRayStart"));
 	BiteRayStart->SetupAttachment(RootComponent);
 	BiteRayLength = 10.f;
@@ -89,7 +94,12 @@ void AWallCrawler::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAction("Attack", IE_Released, this, &AWallCrawler::BiteRelease);
 
 
-	PlayerInputComponent->BindAction("ChangeCameraMode", IE_Pressed, this, &AWallCrawler::CycleCameraModes);
+	PlayerInputComponent->BindAction("ToggleCameraMode", IE_Pressed, this, &AWallCrawler::CycleCameraModes);
+
+	PlayerInputComponent->BindAction("HoldCameraMode", IE_Pressed, this, &AWallCrawler::CycleCameraModes);
+	PlayerInputComponent->BindAction("HoldCameraMode", IE_Released, this, &AWallCrawler::CycleCameraModes);
+
+
 	//PlayerInputComponent->BindAxis("Zoom", this, &AWallCrawler::Zoom); // Handled in blueprint!!
 
 }
@@ -125,6 +135,7 @@ void AWallCrawler::Tick(float DeltaTime)
 
 	ContinueBite();
 
+	// Update camera
 	switch (CameraMode)
 	{
 	case ECameraMode::Follow:
@@ -169,12 +180,17 @@ void AWallCrawler::CycleCameraModes()
 		FRotator OldRotator = CameraBoom->GetComponentRotation();
 		LocalPitch = -OldRotator.Pitch;
 		LocalYaw = OldRotator.Yaw;
+
+		CameraBoom->CameraLagMaxDistance = OrbirCameraLagMaxDistance;
 	}
 	else
 	{
 		CameraMode = ECameraMode::Follow;
 		LocalPitch = 0;
 		LocalYaw = 0;
+
+		CameraBoom->CameraLagMaxDistance = FollowCameraLagMaxDistance;
+
 	}
 }
 
@@ -271,12 +287,11 @@ void AWallCrawler::MoveStrafe(const FQuat & CameraQuat)
 	FVector FDirection = FVector::VectorPlaneProject(CameraForward, RootComponent->GetUpVector()).GetSafeNormal();
 	FVector RDirection = FVector::VectorPlaneProject(CameraRight, RootComponent->GetUpVector()).GetSafeNormal();
 
-	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
+	float MovementIntensity = fminf(1.f, sqrtf(InputForward * InputForward + InputRight * InputRight));
 	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
 	MovementDirection.Normalize();
 
 	AddMovementInput(MovementDirection, MovementIntensity);
-
 }
 
 void AWallCrawler::MoveRotate(const FQuat & CameraQuat)
@@ -323,12 +338,11 @@ void AWallCrawler::MoveRotate(const FQuat & CameraQuat)
 	//MarkLine(R, R + FDirection * 15, FColor::Red, 0);
 	//MarkLine(R, R + RDirection * 15, FColor::Green, 0);
 
-	float MovementIntensity = fmaxf(fabsf(InputForward), fabsf(InputRight));
+	float MovementIntensity = fminf(1.f, sqrtf(InputForward * InputForward + InputRight * InputRight));
 	FVector MovementDirection = InputForward * FDirection + InputRight * RDirection;
 	MovementDirection.Normalize();
 
 	AddMovementInput(MovementDirection, MovementIntensity);
-
 
 	FVector ViewForward = MovementIntensity * MovementDirection + (1 - MovementIntensity) * RootComponent->GetForwardVector();
 	CrawlerMovement->SetViewForward(ViewForward);
@@ -410,6 +424,8 @@ void AWallCrawler::ApplyKnockBack(FVector KnockbackVelocity, float KnockbackDura
 {
 	EndBite();
 	CrawlerMovement->ApplyKnockBack(KnockbackVelocity, KnockbackDuration);
+
+	KnockedBack_BPEvent();
 }
 
 #pragma endregion Health
@@ -434,7 +450,19 @@ void AWallCrawler::Bite()
 			{
 				CurrentBiteDPS = Damage * BiteBaseDamage;
 				BiteVictim = Human;
+
+				BiteVictimCaught_BPEvent(CurrentBiteDPS);
 			}
+			else
+			{
+				// Bit a no damage area
+				BiteMissed_BPEvent();
+			}
+		}
+		else
+		{
+			// Bit something not human
+			BiteMissed_BPEvent();
 		}
 		BiteTargetActor->AttachToComponent(Hit.Component.Get(), FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
 		BiteTargetActor->SetActorLocationAndRotation(Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
@@ -471,6 +499,8 @@ void AWallCrawler::EndBite()
 	if (BiteVictim)
 	{
 		BiteVictim = nullptr;
+
+		BiteVictimLost_BPEvent();
 	}
 	BiteDown = false;
 }
@@ -514,8 +544,7 @@ FHitResult AWallCrawler::TryGetBiteTarget()
 		}
 	}
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, FString("nuthin"));
-	FHitResult NoHit;
-	return NoHit;
+	return Hit;
 }
 
 bool AWallCrawler::HasPotentialBiteTarget()
@@ -523,12 +552,14 @@ bool AWallCrawler::HasPotentialBiteTarget()
 	FHitResult Hit = TryGetBiteTarget();
 	if (Hit.IsValidBlockingHit())
 	{
-		return true;
+		AHuman * Human = Cast<AHuman>(Hit.Actor.Get());
+		if (Human && Human->GetBiteDamageForBone(Hit.BoneName) > 0)
+		{
+			return true;
+		}
 	}
-	else
-	{
-		return false;
-	}	
+	return false;
+		
 }
 
 #pragma endregion Attack

@@ -9,6 +9,8 @@
 #include "StrikeBox.h"
 #include "MobileTargetActor.h"
 
+#include "Stimulus.h"
+
 #include "Human.generated.h"
 
 class UHumanMovement;
@@ -17,7 +19,8 @@ class UHumanSenseComponent;
 class ATargetPoint;
 class UBehaviorTree;
 class UCapsuleComponent;
-class AGlobalAuthority;
+class AAssassinationGameState;
+class AHumanAIController;
 
 UCLASS()
 class CONTROLANDIKTEST_API AHuman : public APawn, public IHealthInterface, public IVisibleInterface
@@ -60,11 +63,15 @@ public:
 
 #pragma region GlobalReferencing
 
-	/** Holds references to important things like the crawler, humans and alert level */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GlobalReferencing)
-	//AGlobalAuthority* GlobalAuthority;
+	// keeping a reference to avoid casting for every use
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameState")
+	//AAssassinationGameState* AssassinationState;
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "GameState")
+	AAssassinationGameState* GetAssassinationState();
 
-	//void SetGlobalAuthority(AGlobalAuthority* NewGlobalAuthority) { GlobalAuthority = NewGlobalAuthority; };
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "GameState")
+	AHumanAIController* GetHumanAI();
 
 #pragma endregion GlobalReferencing
 
@@ -72,24 +79,56 @@ public:
 
 #pragma region InnerFeeling
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = Tension)
+public:
+	UPROPERTY(Transient, BlueprintReadOnly, Category = IndividualFeeling)
+	bool bCrawlerInSight;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = IndividualFeeling)
+	bool bDeadBodyInSight;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = IndividualFeeling)
+	bool bHumanInTroubleInSight;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = IndividualFeeling)
+	bool bCrawlerOnSensitiveArea;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = IndividualFeeling)
+	bool bCrawlerOnBody;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = IndividualFeeling)
 	float Tension;
 
 	/** How long before sensing something spooky causes a global alert */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Tension)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IndividualFeeling)
 	float TensionThreshold;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Tension)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IndividualFeeling)
 	float TensionCooldownRate;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = Tension)
-	bool bCrawlerInSight;
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = IndividualFeeling)
+	bool IsAlert() { return Tension >= TensionThreshold; };
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = Tension)
-	bool bDeadBodyInSight;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = Tension)
-	bool bCrawlerOnSensitiveArea;
+	UPROPERTY(Transient, BlueprintReadWrite, Category = IndividualFeeling)
+	TArray<UStimulus*> Stimuli;
+
+	UFUNCTION(BlueprintCallable, Category = IndividualFeeling)
+	void AddNewStimulus(EStimulusType Type, FVector Location, AActor* Actor = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = IndividualFeeling)
+	void ProcessStimuli();
+
+	void PrintStimuli();
+
+	void PrintStatusVariables();
+
+	UFUNCTION(BlueprintCallable, Category = IndividualFeeling)
+	void UpdateTension(float DeltaTime);
+
+	float GetTensionMin();
+
+	// Unset all flags from senses so that tension can be released
+	void ClearInnerFeeling();
 
 #pragma endregion InnerFeeling
 
@@ -127,8 +166,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Vision)
 	float EyeTilt;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Vision)
-	FVector CrawlerLastKnownLocation;
+
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = Vision)
+	FVector LookTarget;
+	
+	UPROPERTY(Transient, BlueprintReadOnly, Category = Vision)
+	int LookTargetPriority;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = Vision)
+	bool bLookTargetValid;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Vision)
+	bool IsLookTargetValid() { return bLookTargetValid; };
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Vision)
+	FVector GetLookTarget();
+
+	UFUNCTION(BlueprintCallable, Category = Vision)
+	void TryUpdateLookTarget(FVector NewTarget, int Priority);
 
 #pragma endregion Vision
 
@@ -138,6 +194,23 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visibility")
 	USceneComponent* VisionTargetMarker;
+
+	/** Has this human been seen by another while not living */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Visibility")
+	bool bSeenAsDeadBody;
+
+	UFUNCTION(BlueprintCallable, Category = "Visibility")
+	void MarkAsSeenDead() { bSeenAsDeadBody = true; };
+
+	/** Has this human been seen by another while not living */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Visibility")
+	bool bSeenInTrouble;
+
+	UFUNCTION(BlueprintCallable, Category = "Visibility")
+	void MarkAsSeenInTrouble() { bSeenInTrouble = true; };
+
+	UFUNCTION(BlueprintCallable, Category = "Visibility")
+	void MarkAsNoLongerInTrouble() { bSeenInTrouble = false; };
 
 	/* Visibility Interface functions **/
 	virtual FVector GetVisionTargetLocation_Implementation() override;
@@ -177,11 +250,11 @@ public:
 	float GetStunRemaing() { return StunRemaining/StunDecayDuration; };
 
 
-
-
-protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health)
 	float MaxHealth;
+
+protected:
+
 	float CurrentHealth;
 
 	bool bDead;
@@ -206,11 +279,15 @@ public:
 	void UpdateActiveStrikeBox();
 
 	UFUNCTION(BlueprintCallable, Category = Senses)
-	UStrikeBox* CheckStrikeBoxes();
+	UStrikeBox* FindActiveStrikeBox();
 
 	/** Returns true if a crawler is latched to this human */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
-	bool IsCrawlerOnBody();
+	bool IsCrawlerOnBody() { return bCrawlerOnBody; };
+
+	/** Sets bCrawlerOnBody */
+	UFUNCTION(BlueprintCallable, Category = Strike)
+	void CheckCrawlerOnBody();
 
 	/** Returns the crawler's latched bone name or "None" */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Strike)
@@ -270,6 +347,12 @@ public:
 #pragma region Gait
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Gait)
+	float GetForwardMovement();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Gait)
+	float GetRightMovement();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Gait)
 	float GetGaitFraction();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Gait)
@@ -300,5 +383,15 @@ public:
 	void TurnToFaceVelocity();
 
 #pragma endregion Movement
+
+
+
+
+#pragma region Sound
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Sound)
+		void StrikeBegan_BPEvent();
+
+#pragma endregion Sound
 
 };

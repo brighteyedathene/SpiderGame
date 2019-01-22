@@ -38,7 +38,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	//virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:	
 	// Called every frame
@@ -48,6 +48,7 @@ public:
 	TArray<AHuman*> Humans;
 	AWallCrawler* Crawler;
 	FVector CrawlerLastKnownLocation;
+	FVector CrawlerLastKnownVelocity;
 	bool bCrawlerLastKnownLocationIsValid;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = GlobalReferencing)
@@ -57,10 +58,14 @@ public:
 	FVector GetCrawlerLastKnownLocation();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = GlobalReferencing)
+	FVector GetCrawlerPredictedLocation(float SecondsFromLastSighting);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = GlobalReferencing)
 	bool IsCrawlerLastKnownLocationValid() { return bCrawlerLastKnownLocationIsValid; };
 
 	UFUNCTION(BlueprintCallable, Category = GlobalReferencing)
-	void SetCrawlerLastKnownLocation(FVector NewLastKnownLocation);
+	void UpdateCrawlerLastKnownLocationAndVelocity();
+
 
 	UFUNCTION(BlueprintCallable, Category = GlobalReferencing)
 	void ResetCrawlerLastKnownLocation();
@@ -85,9 +90,9 @@ public:
 	AHuman* GetNearestLivingHuman(FVector ThisLocation, AHuman* IgnoredHuman = nullptr);
 
 
-	static AGlobalAuthority* TheGlobalAuthority;
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Globalreferencing)
-	static AGlobalAuthority* GetGlobalAuthority(UObject* AnyObjectInWorld);
+	//static AGlobalAuthority* TheGlobalAuthority;
+	//
+	//UFUNCTION(BlueprintCallable, BlueprintPure, Category = Globalreferencing)
+	//static AGlobalAuthority* GetGlobalAuthority(UObject* AnyObjectInWorld);
 
 };

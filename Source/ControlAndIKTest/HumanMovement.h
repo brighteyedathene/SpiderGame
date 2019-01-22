@@ -70,7 +70,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SurfaceMovement)
 	float GroundRayLength;
 
-
 	FVector GetVelocity();
 
 	UPROPERTY(Transient)

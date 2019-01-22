@@ -3,11 +3,15 @@
 #include "GlobalAuthority.h"
 
 #include "Runtime/Engine/Classes/Kismet/GameplayStatics.h"
+
+#include "AssassinationGameState.h"
 #include "WallCrawler.h"
 #include "Human.h"
 
 #include "Runtime/Engine/Classes/Engine/World.h"
 #include "TensionMeterComponent.h"
+
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 AGlobalAuthority::AGlobalAuthority()
@@ -16,6 +20,8 @@ AGlobalAuthority::AGlobalAuthority()
 	PrimaryActorTick.bCanEverTick = false;
 
 	TensionMeter = CreateDefaultSubobject<UTensionMeterComponent>("TensionMeter");
+
+	//TheGlobalAuthority = nullptr;
 }
 
 // Called when the game starts or when spawned
@@ -24,37 +30,43 @@ void AGlobalAuthority::BeginPlay()
 	Super::BeginPlay();
 	
 	// In case there is a global authority already in the level, let it be THE static global auth
-	TheGlobalAuthority = this;
+	//if (TheGlobalAuthority)
+	//{
+	//	TheGlobalAuthority->Destroy();
+		//TheGlobalAuthority = this;
+	//}
 
 	// Gather humans and let them know who is the global authority (it's this)
-	TArray<AActor*> HumanActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AHuman::StaticClass(), HumanActors);
-	for (auto & HumanActor : HumanActors)
-	{
-		AHuman* Human = Cast<AHuman>(HumanActor);
-		if (Human)
-		{
-			Humans.Add(Human);
-		}
-	}
+	//GetWorld()->
 
-	// Find a crawler (hopefully just one)
-	TArray<AActor*> CrawlerActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AWallCrawler::StaticClass(), CrawlerActors);
-	if (CrawlerActors.Num() < 1)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("GlobalAuthority found no crawlers!")); 
-		return;
-	}
-	else if (CrawlerActors.Num() > 1)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("GlobalAuthority found more than 1 crawler! Choosing one arbitrarily!"));
-		Crawler = Cast<AWallCrawler>(CrawlerActors[0]);
-	}
-	else
-	{
-		Crawler = Cast<AWallCrawler>(CrawlerActors[0]);
-	}
+	//TArray<AActor*> HumanActors;
+	//UGameplayStatics::GetAllActorsOfClass(GetWorld(), AHuman::StaticClass(), HumanActors);
+	//for (auto & HumanActor : HumanActors)
+	//{
+	//	AHuman* Human = Cast<AHuman>(HumanActor);
+	//	if (Human)
+	//	{
+	//		Humans.Add(Human);
+	//	}
+	//}
+	//
+	//// Find a crawler (hopefully just one)
+	//TArray<AActor*> CrawlerActors;
+	//UGameplayStatics::GetAllActorsOfClass(GetWorld(), AWallCrawler::StaticClass(), CrawlerActors);
+	//if (CrawlerActors.Num() < 1)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("GlobalAuthority found no crawlers!")); 
+	//	return;
+	//}
+	//else if (CrawlerActors.Num() > 1)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("GlobalAuthority found more than 1 crawler! Choosing one arbitrarily!"));
+	//	Crawler = Cast<AWallCrawler>(CrawlerActors[0]);
+	//}
+	//else
+	//{
+	//	Crawler = Cast<AWallCrawler>(CrawlerActors[0]);
+	//}
 
 }
 
@@ -81,10 +93,40 @@ FVector AGlobalAuthority::GetCrawlerLastKnownLocation()
 	return CrawlerLastKnownLocation;
 }
 
-void AGlobalAuthority::SetCrawlerLastKnownLocation(FVector NewLastKnownLocation)
+void AGlobalAuthority::UpdateCrawlerLastKnownLocationAndVelocity()
 {
-	CrawlerLastKnownLocation = NewLastKnownLocation;
-	bCrawlerLastKnownLocationIsValid = true;
+	if (Crawler)
+	{
+		CrawlerLastKnownLocation = Crawler->GetActorLocation();
+		CrawlerLastKnownVelocity = Crawler->GetVelocity();
+		bCrawlerLastKnownLocationIsValid = true;
+	}
+}
+
+FVector AGlobalAuthority::GetCrawlerPredictedLocation(float SecondsFromLastSighting)
+{
+	if (Crawler)
+	{
+		FVector PredictedLocation = CrawlerLastKnownLocation + CrawlerLastKnownVelocity * SecondsFromLastSighting;
+		DrawDebugSphere(GetWorld(), PredictedLocation, 5.f, 24, FColor::Orange);
+
+		ECollisionChannel TraceChannel = ECollisionChannel::ECC_Visibility;
+		FCollisionQueryParams CollisionParameters;
+		CollisionParameters.AddIgnoredActor(Crawler);
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, CrawlerLastKnownLocation, PredictedLocation, TraceChannel, CollisionParameters))
+		{
+			PredictedLocation = Hit.ImpactPoint;
+			DrawDebugSphere(GetWorld(), PredictedLocation, 5.f, 24, FColor::Purple);
+		}
+
+		return PredictedLocation;
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, FString("GlobalAuthority has no crawler!"));
+		return FVector(0, 0, 0);
+	}
 }
 
 void AGlobalAuthority::ResetCrawlerLastKnownLocation()
@@ -143,18 +185,20 @@ AHuman* AGlobalAuthority::GetNearestLivingHuman(FVector ThisLocation, AHuman* Ig
 }
 
 
-void AGlobalAuthority::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	TheGlobalAuthority = nullptr;
-}
+//void AGlobalAuthority::EndPlay(const EEndPlayReason::Type EndPlayReason)
+//{
+//	TheGlobalAuthority = nullptr;
+//	Destroy();
+//}
 
-AGlobalAuthority* AGlobalAuthority::TheGlobalAuthority;
-
-AGlobalAuthority* AGlobalAuthority::GetGlobalAuthority(UObject* AnyObjectInWorld)
-{
-	if(!TheGlobalAuthority)
-	{
-		TheGlobalAuthority = AnyObjectInWorld->GetWorld()->SpawnActor<AGlobalAuthority>(AGlobalAuthority::StaticClass());
-	}
-	return TheGlobalAuthority;
-}
+//AGlobalAuthority* AGlobalAuthority::TheGlobalAuthority;
+//
+//AGlobalAuthority* AGlobalAuthority::GetGlobalAuthority(UObject* AnyObjectInWorld)
+//{
+//	
+//	if(!TheGlobalAuthority)
+//	{
+//		TheGlobalAuthority = AnyObjectInWorld->GetWorld()->SpawnActor<AGlobalAuthority>(AGlobalAuthority::StaticClass());
+//	}
+//	return TheGlobalAuthority;
+//}

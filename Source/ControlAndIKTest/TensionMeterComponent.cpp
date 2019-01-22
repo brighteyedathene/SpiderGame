@@ -9,14 +9,18 @@ UTensionMeterComponent::UTensionMeterComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-
+	
+	
 	DrainRate = 1.f;
-	TensionCooldown = 5.f;
+	TensionCooldown = 25.f;
 }
 
 
+void UTensionMeterComponent::BeginPlay()
+{
+	//SetTickGroup(TG_PostUpdateWork);
 
-
+}
 
 // Called every frame
 void UTensionMeterComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

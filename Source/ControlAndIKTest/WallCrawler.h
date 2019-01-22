@@ -37,14 +37,16 @@ class CONTROLANDIKTEST_API AWallCrawler : public APawn, public IHealthInterface,
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 	
-	UPROPERTY(EditAnywhere)
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UCrawlerMovement* CrawlerMovement;
 
 	UPROPERTY(EditAnywhere)
 	UCrawlerGaitControl* CrawlerGaitControl;
 	
 
-public:
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	USphereComponent* MySphereComponent;
 
@@ -94,6 +96,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 	float MaxFollowCameraDistance;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float FollowCameraLagMaxDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	float OrbirCameraLagMaxDistance;
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
@@ -233,6 +240,30 @@ protected:
 	float LocalYaw;
 
 #pragma endregion Input
+
+
+
+#pragma region Sound
+
+	/* Let the blueprint know there is a bite victim */
+	UFUNCTION(BlueprintImplementableEvent, Category = Sound)
+	void BiteVictimCaught_BPEvent(float DPS);
+
+	/* Bite victim lost! */
+	UFUNCTION(BlueprintImplementableEvent, Category = Sound)
+	void BiteVictimLost_BPEvent();
+
+	/* Bit something unbiteable */
+	UFUNCTION(BlueprintImplementableEvent, Category = Sound)
+	void BiteMissed_BPEvent();
+
+	/* Struck */
+	UFUNCTION(BlueprintImplementableEvent, Category = Sound)
+	void KnockedBack_BPEvent();
+
+
+#pragma endregion Sound
+
 
 	void MarkSpot(FVector Point, FColor Colour, float Duration);
 	void MarkLine(FVector Start, FVector End, FColor Colour, float Duration);
