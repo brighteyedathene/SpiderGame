@@ -5,6 +5,8 @@
 #include "WallCrawler.h"
 #include "Human.h"
 
+#include "DrawDebugHelpers.h"
+
 UStimulus::UStimulus() {};
 
 UStimulus::UStimulus(EStimulusType StimulusType, FVector StimulusLocation, AActor* StimulusActor) 
@@ -39,22 +41,24 @@ FVector UStimulus::GetLocation()
 			return Crawler->GetVisionTargetLocation_Implementation();
 		}
 	}
-	//else if (Type == EStimulusType::TroubleSighting)
-	//{
-	//	AHuman * Human = Cast<AHuman>(Actor);
-	//	if (Human)
-	//	{
-	//		return Human->EyeLocationMarker->GetComponentLocation();
-	//	}
-	//}
-	//else if (Type == EStimulusType::BodySighting)
-	//{
-	//	AHuman * Human = Cast<AHuman>(Actor);
-	//	if (Human)
-	//	{
-	//		return Human->GetVisionTargetLocation_Implementation();
-	//	}
-	//}
+	else if (Type == EStimulusType::TroubleSighting)
+	{
+		AHuman * Human = Cast<AHuman>(Actor);
+		if (Human)
+		{
+			DrawDebugSphere(GetWorld(), Human->EyeLocationMarker->GetComponentLocation(), 3, 3, FColor::Magenta);
+			return Human->EyeLocationMarker->GetComponentLocation();
+		}
+	}
+	else if (Type == EStimulusType::BodySighting)
+	{
+		AHuman * Human = Cast<AHuman>(Actor);
+		if (Human)
+		{
+			return Human->GetVisionTargetLocation_Implementation();
+		}
+	}
 
+	// fall back on regular location
 	return Location;
 }
