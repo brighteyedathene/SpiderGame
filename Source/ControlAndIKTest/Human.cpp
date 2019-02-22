@@ -163,6 +163,11 @@ void AHuman::Tick(float DeltaTime)
 		ContinueStrike(DeltaTime);
 	}
 
+	if (bCrawlerInSight)
+	{
+		TryUpdateLookTarget(GetAssassinationState()->GetCrawlerRealLocation(), 11);
+	}
+
 	UpdateTension(DeltaTime);
 
 	//PrintStatusVariables();
@@ -336,14 +341,15 @@ void AHuman::ProcessStimuli()
 		}
 		else if (Stimulus->Type == EStimulusType::TroubleSighting)
 		{
-			TryUpdateLookTarget(Stimulus->GetLocation(), 5);
+			//TryUpdateLookTarget(Stimulus->GetLocation(), 5);
+			TryUpdateLookTarget(GetAssassinationState()->GetCrawlerRealLocation(), 5);
 
 			AHuman* Human = Cast<AHuman>(Stimulus->Actor);
 			if (Human && !Human->bSeenInTrouble)
 			{
 				if (!GetAssassinationState()->IsGlobalAlert())
 				{
-					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, FString("Someone in trouble??"));
+					//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, FString("Someone in trouble??"));
 
 					GetAssassinationState()->SetGlobalCaution();
 					//GetAssassinationState()->AddInvestigationPoints(Stimulus->GetLocation(), 3);
@@ -365,7 +371,7 @@ void AHuman::ProcessStimuli()
 			{
 				if (!GetAssassinationState()->IsGlobalAlert())
 				{
-					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Magenta, FString("A body??"));
+					//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Magenta, FString("A body??"));
 
 
 					GetAssassinationState()->SetGlobalCaution();

@@ -36,7 +36,6 @@ void UStrikeLimb::BeginPlay()
 
 void UStrikeLimb::BeginStrike()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("GAHAAAAA"));
 	SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	bHitboxActive = true;
 }
